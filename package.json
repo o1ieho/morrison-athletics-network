@@ -10,7 +10,9 @@
     "test": "node --test \"lib/**/*.test.ts\"",
     "seed:generate": "node scripts/generate-seed.mjs",
     "db:local": "scripts/local-db.sh",
-    "test:db": "scripts/local-db.sh && psql -X -q -o /dev/null -v ON_ERROR_STOP=1 -d ${SSN_TEST_DB:-ssn_pilot_test} -f supabase/local/tests.sql"
+    "test:db": "scripts/local-db.sh && psql -X -q -o /dev/null -v ON_ERROR_STOP=1 -d ${SSN_TEST_DB:-ssn_pilot_test} -f supabase/local/tests.sql",
+    "check:supabase": "node --env-file=.env.local scripts/check-supabase.mjs",
+    "dev:demo": "NEXT_PUBLIC_SSN_DEMO=1 next dev"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -46,86 +46,95 @@ Things that are broken today, in rough order of severity.
 
 ## Checklist
 
-### Phase 0: Foundation (unblocks everything)
-- [ ] **Oliver:** check whether the old Supabase project can be restored, or create a new one. Send the URL and publishable key.
-- [ ] Fix the TypeScript build errors so `npm run build` passes.
-- [ ] Write one clean pilot migration (see *Data model* below).
-- [ ] Seed the 2026-27 season, the 4 MAT basketball teams (Varsity and JV, Boys and Girls), opponents, the current roster and the schedule.
-- [ ] Remove the silent demo-data fallbacks; show real empty and error states instead. Keep demo data only behind an explicit `DEMO_MODE` flag for local dev.
-- [ ] Format all dates and times in `Asia/Taipei`.
-- [ ] Put the Supabase keys only in env vars (remove the hard-coded key from `scripts/test-connection.mjs`).
+Status as of 2026-09-29. Everything that doesn't need a live Supabase project is built and tested in demo mode and against a local Postgres.
+
+### Phase 0: Foundation
+- [ ] **Oliver:** get a Supabase project (restore, school-owned, or new) and send the URL and publishable key.
+- [x] Fix the build: `npm run build` passes. Also upgraded Next.js to 16.3.6 for security fixes.
+- [x] One clean pilot migration (`supabase/migrations/202609290001_pilot_schema.sql`), tested by `npm run test:db` (28 checks).
+- [x] Seed: 2026-27 season, the 4 teams and current rosters (`supabase/seed.sql`, generated from `data/seed/roster.json`). Opponents and schedule come in via Admin once known.
+- [x] Silent fallbacks removed. Errors show an error page; demo data only appears in demo mode, with a banner.
+- [x] All dates and times in `Asia/Taipei`.
+- [x] Keys only in env vars (`scripts/check-supabase.mjs` replaces the hard-coded test script).
 
 ### Phase 1: Login and access
-- [ ] `/login` page (Supabase email and password).
-- [ ] Protect `/admin/*` and `/operator/*` on the server; redirect to login.
-- [ ] Hide operator and admin links from public visitors.
-- [ ] Access rules: writes require an `admin` or `stat_operator` row in `user_roles`.
-- [ ] **Oliver:** turn off public sign-ups in Supabase Auth and create the operator accounts.
+- [x] `/login` (Supabase email and password).
+- [x] `/admin/*` and `/operator/*` check roles on the server (`lib/auth.ts`); `proxy.ts` refreshes sessions.
+- [x] Operator and admin links removed from the public header (a "Staff sign-in" link sits in the footer).
+- [x] Database rules: writes need an `admin` or `stat_operator` role.
+- [ ] **Oliver:** turn off public sign-ups and create staff accounts (SETUP.md step 2).
+- [ ] Test the real sign-in flow once Supabase exists.
 
-### Phase 2: Operator console (rebuild)
-- [ ] Correct event types: 2PT/3PT/FT made **and** missed, off/def rebound, assist, steal, block, turnover, foul, timeout, period start/end.
-- [ ] A clear entry flow (action → player → shot spot for field goals), with the pending step shown on screen and a cancel button.
-- [ ] Every tap saves immediately. The score is **derived from plays** in the database, never typed in.
-- [ ] Show a "saved / sending / failed" state on each play; queue and retry when gym Wi-Fi drops.
-- [ ] Clock stored as `running + started_at + seconds_left`, so viewers see it tick without a database write every second.
-- [ ] Start/end quarter and set status (Scheduled → Live → Final), with a confirmation before Final.
-- [ ] Undo that still works after a refresh; tap any play in the log to edit or delete it.
-- [ ] Team fouls, bonus indicator and timeouts left, all derived from plays. Foul reset period and bonus threshold are per-game settings (rule TBD, see Open questions).
-- [ ] Opponent tracked as team totals only: score, team fouls, timeouts. No opponent player picker.
-- [ ] Pre-game setup: active roster and quarter length (default 8 minutes).
-- [ ] Laptop- and tablet-first layout, large touch targets, keyboard shortcuts, connection indicator.
-- [ ] Store shot spots as 0–1, keeping 0.
+### Phase 2: Operator console
+- [x] Full event types, makes **and** misses.
+- [x] Entry either way (player → stat or stat → player), with the pending step on screen and a Clear button.
+- [x] Court tap auto-detects 2 vs 3 (FIBA court); assist and offensive-rebound follow-ups.
+- [x] Every tap saves; scores are derived from plays by a database trigger.
+- [x] Offline-safe queue: saved to the device, retried with backoff, no duplicates on retry, warns before closing.
+- [x] Server-time clock; viewers tick it locally.
+- [x] Start/end quarter, overtime, finish game (with confirmation), reopen.
+- [x] Undo/restore any play, including after a refresh (Ctrl+Z works).
+- [x] Team fouls, bonus and timeouts derived from plays; foul reset and bonus threshold are per-game settings.
+- [x] Opponent as team totals only.
+- [x] Quarter length per game (Admin → game → Rules, default 8 minutes).
+- [ ] Pre-game "active players" selection (hide players who aren't dressed). *Nice to have.*
+- [x] Fits one screen on a landscape tablet or laptop; keyboard shortcuts; connection and "All saved" indicators.
+- [ ] Real-network test: operator laptop plus phone viewer on Supabase, including a Wi-Fi drop. **Needs Supabase.**
 
 ### Phase 3: Public live game page
-- [ ] Scoreboard header: score, live clock, quarter, team fouls, status. Updates in place (no full page reload).
-- [ ] Play-by-play feed, newest first, with a quarter filter.
-- [ ] Box score built from plays for the MAT team: PTS, FGM-A, 3PM-A, FTM-A, REB, AST, STL, BLK, TOV, PF, plus team totals. Opponent shows team totals only.
-- [ ] Shot chart with a per-player filter.
-- [ ] Game leaders computed automatically.
-- [ ] Final-game recap state.
-- [ ] Re-sync when a phone wakes up or reconnects.
+- [x] Scoreboard with live clock, quarter, team fouls and bonus; updates in place.
+- [x] Play-by-play grouped by quarter with running score. (A quarter filter wasn't needed.)
+- [x] Box score from plays, with team totals and shooting percentages; opponent totals.
+- [x] Shot chart with a per-player filter.
+- [x] Game leaders.
+- [x] Final and upcoming states (the pre-game view shows the roster).
+- [x] Re-syncs after reconnecting or when a phone wakes.
 
 ### Phase 4: Season stats
-- [ ] Database view: player season totals and averages (GP, PPG, RPG, APG, FG%, 3P%, FT%).
-- [ ] Player game log on the athlete page.
-- [ ] Team record computed from final games.
-- [ ] Stat leaders page.
+- [x] Database views: `player_game_stats`, `player_season_stats`, `team_records`.
+- [x] Player page with season averages and game log.
+- [x] Team records from final games.
+- [x] Sortable stats page per team.
 
 ### Phase 5: UI/UX pass
-- [ ] Mobile header: compact bar plus menu (or bottom tabs); fix desktop nav overflow.
-- [ ] Homepage: live or next game first, a smaller hero, latest results, then announcements. Hide empty sections.
-- [ ] Trim the nav to basketball-pilot pages; hide Media and other sports until they're real.
-- [ ] Rewrite dev-speak copy.
-- [ ] Loading skeletons, empty states, 404 page.
-- [ ] One shared `Court` / `ShotChart` component; move inline styles into CSS.
-- [ ] Accessibility: contrast, focus rings, tables readable on phones.
+- [x] New design system (Broncos green, condensed display type); mobile menu; no clipped nav.
+- [x] Home: score strip, live or next game first, upcoming, results, team records, scoring leaders.
+- [x] Nav trimmed to Home, Schedule, Teams, Stats, News. Other sports and media are hidden.
+- [x] Copy rewritten.
+- [x] Empty states, a 404 page, an error page. *(Loading skeletons: not yet.)*
+- [x] One shared FIBA `Court` component; the old copy-pasted inline SVGs are gone.
+- [x] Tables scroll sideways on phones with a sticky player column; focus rings; labelled controls.
 
 ### Phase 6: Admin for the pilot
-- [ ] Games: create **and edit**; quick-add opponent; Taipei time input.
-- [ ] Roster: create and edit; unique jersey number per team; unique slugs.
-- [ ] Show errors in the UI, not the console.
-- [ ] Hide placeholder admin pages (coaches, media, standings) for now.
+- [x] Games: create, edit, delete (with confirmation), Taipei time, manual-score mode for untracked games, per-game rules.
+- [x] Rosters: add, edit, remove; duplicate jerseys are caught; unique slugs.
+- [x] Opponents: add and edit. *(Not quick-add from the game form yet.)*
+- [x] News: create, edit, publish/draft, pin, delete.
+- [x] Errors shown in the UI. Placeholder admin pages removed.
 
 ### Phase 7: Test and launch
-- [ ] Unit tests for the stat math (box score and season averages from plays).
-- [ ] A script that simulates a full game's events against the database.
-- [ ] Two-device test: laptop operator plus phone viewer, including a Wi-Fi drop mid-game.
-- [ ] Deploy to Vercel with env vars.
-- [ ] A one-page operator runbook, plus a paper-scoresheet fallback.
-- [ ] Dry run at a scrimmage before a real game.
+- [x] Unit tests for stat math and court geometry (`npm test`, 12 checks), cross-checked against the SQL views.
+- [x] Game simulator (`scripts/lib/simulate-game.mjs`) used for the demo data.
+- [ ] A script that replays a simulated game live against Supabase (load test). **Needs Supabase.**
+- [ ] Deploy to Vercel (SETUP.md step 4). **Needs Supabase.**
+- [x] Operator runbook: OPERATOR_GUIDE.md.
+- [ ] Dry run at a scrimmage.
 
 ### Cleanup (later)
 - [ ] Archive the old static site (`index.html`, `ops-*.html`, `backend/`) once the pilot works.
-- [ ] Add `.freebuff/` to `.gitignore`.
+- [ ] Add `.freebuff/` to the root `.gitignore`.
 
 ---
 
-## Data model changes (pilot migration)
+## Data model (pilot migration)
 
-- `ssn_event_type`: add `fg2_miss`, `fg3_miss`, `ft_miss`, `rebound_off`, `rebound_def`, `timeout`, `period_start`, `period_end`; rename the made types to `fg2_made` / `fg3_made` / `ft_made`.
-- `games`: add `period_length_seconds`, `clock_running`, `clock_seconds_left`, `clock_started_at`; make `home_score` / `away_score` maintained by a trigger from non-voided events.
-- Views: `game_box_scores` (per player per game) and `player_season_stats`.
-- Access rules: public read; writes need `has_role('admin' | 'stat_operator')`.
+- Every game is **one MAT team vs one opponent** (`games.team_id`, `opponent_id`, `is_home`). Opponents live in their own table, as team totals only.
+- `game_events.side` is `team`, `opponent` or `game` (period markers). The event types cover makes **and** misses; `points` is computed from the type.
+- Scores are maintained by a trigger from non-voided events, unless a game uses `scoring_mode = 'manual'` (for games nobody tracked live).
+- Clock: `clock_running`, `clock_seconds_left`, `clock_anchor_at`, changed only through server-time RPCs (`clock_start`, `clock_stop`, `clock_set`, `start_period`, `end_period`, `set_game_status`).
+- Per-game rules: `period_length_seconds` (default 480), `overtime_length_seconds`, `foul_reset`, `bonus_threshold`.
+- Views: `player_game_stats`, `player_season_stats` (final games only), `team_records`.
+- Access rules: anyone can read; `stat_operator` can run games; `admin` can edit everything. Undo is a soft delete (`voided_at`), so viewers receive it in realtime.
 
 ## Decisions (2026-09-29)
 

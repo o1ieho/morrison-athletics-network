@@ -1,29 +1,32 @@
-# SSN Platform Rebuild
+# MAT Athletics (SSN platform)
 
-Fresh Next.js implementation of the Morrison Academy Taipei Athletics SSN platform.
+Live scores, box scores, schedules and season stats for Morrison Academy Taipei Broncos basketball. A student stat operator logs plays from the sideline, and every phone following the game updates in real time.
 
-## What this contains
+- **Public site:** home, schedule, teams, stats, player pages, and game pages (live scoreboard, play-by-play, box score, shot chart).
+- **Operator console** (`/operator`): fast play entry for one person, offline-safe.
+- **Admin** (`/admin`): games, rosters, opponents, news.
 
-- Next.js App Router shell
-- Morrison Academy Taipei Athletics public routes
-- Protected admin/operator route structure
-- Legacy SSN seed data copied into `data/legacy`
-- Relational Supabase migration in `supabase/migrations`
-- Seed SQL generator for importing current SSN content into the relational model
+Stack: Next.js 16 (App Router), Supabase (Postgres, auth, realtime), TypeScript.
 
-## Run locally
+## Quick start
 
 ```bash
 npm install
-npm run dev
+npm run dev:demo      # runs on sample data, no database needed
 ```
 
-Open `http://localhost:3000`.
+- [SETUP.md](SETUP.md): connecting Supabase, staff accounts, deploying
+- [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md): the game-day cheat sheet
+- [PILOT_PLAN.md](PILOT_PLAN.md): pilot scope, decisions and checklist
 
-## Generate relational seed SQL
+## How it fits together
 
-```bash
-npm run seed:legacy
-```
-
-The output is written to `supabase/seed-rebuild.sql`.
+| Where | What |
+|---|---|
+| `supabase/migrations/` | The schema. Scores are derived from `game_events` by a trigger; clock and period changes are server-time RPCs; access is role-based (`admin`, `stat_operator`). |
+| `lib/basketball.ts` | Stat math and play-by-play text shared by every screen (mirrors the SQL views; tests check they agree). |
+| `lib/data/` | Server-side reads for public pages (Supabase or demo). |
+| `lib/live/` | Realtime game state and operator writes (Supabase or in-browser demo), plus the offline play queue. |
+| `components/operator/console.tsx` | The operator console. |
+| `components/game-center.tsx` | The public live game page. |
+| `data/seed/roster.json` | The roster source. `npm run seed:generate` turns it into SQL. |
