@@ -28,7 +28,7 @@ import { useLiveGame } from "@/lib/live/use-live-game";
 import type { GameEvent, GameSummary, RosterPlayer } from "@/lib/types";
 import { useFlashKey } from "@/lib/use-flash";
 
-type Tab = "plays" | "box" | "flow" | "shots" | "roster";
+type Tab = "plays" | "box" | "flow" | "roster";
 
 export function GameCenter({ initial }: { initial: LiveSnapshot }) {
   const live = useLiveGame(initial.game.id, initial);
@@ -45,7 +45,6 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
         { id: "plays", label: "Play-by-play" },
         { id: "box", label: "Box score" },
         { id: "flow", label: "Game flow" },
-        { id: "shots", label: "Shot chart" },
       ]
     : [{ id: "roster", label: "Roster" }];
 
@@ -73,7 +72,13 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
         ))}
       </div>
 
-      {tab === "plays" && <PlayByPlay game={game} events={events} roster={roster} />}
+      {tab === "plays" && (
+        // Shot chart sits above the play-by-play, like ESPN's gamecast.
+        <>
+          <ShotChart events={events} roster={roster} />
+          <PlayByPlay game={game} events={events} roster={roster} />
+        </>
+      )}
       {tab === "box" && <BoxScoreTable game={game} box={box} />}
       {tab === "flow" && (
         <section className="card card-pad" aria-label="Game flow">
@@ -85,7 +90,6 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
           />
         </section>
       )}
-      {tab === "shots" && <ShotChart events={events} roster={roster} />}
       {tab === "roster" && <RosterList roster={roster} />}
     </div>
   );
