@@ -42,8 +42,9 @@ export function isoToTaipeiLocal(iso: string) {
   return shifted.toISOString().slice(0, 16);
 }
 
+/** "Boys Varsity", "Girls JV", … (add " Basketball" where the sport isn't obvious). */
 export function teamLabel(team: Pick<Team, "gender" | "level">) {
-  return `${team.level === "jv" ? "JV" : "Varsity"} ${team.gender === "girls" ? "Girls" : "Boys"}`;
+  return `${team.gender === "girls" ? "Girls" : "Boys"} ${team.level === "jv" ? "JV" : "Varsity"}`;
 }
 
 /** "Broncos vs Tigers" at home, "Broncos at Tigers" away. */

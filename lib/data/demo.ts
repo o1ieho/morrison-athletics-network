@@ -80,6 +80,9 @@ export function createDemoSource(): DataSource {
     async getAnnouncements() {
       return [];
     },
+    async getMedia() {
+      return [];
+    },
   };
 }
 

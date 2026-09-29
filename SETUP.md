@@ -18,8 +18,9 @@ Create a project at supabase.com. Ideally it's owned by a school account, with y
 Then, in **SQL Editor**, run these files in order:
 
 1. `supabase/migrations/20260929000000_pilot_schema.sql` (tables, rules, realtime)
-2. `supabase/seed.sql` (season, the 4 teams, current rosters)
-3. *(Optional, for testing only)* `supabase/demo-seed.sql` (sample games). Remove it before the season:
+2. `supabase/migrations/20260930000000_media.sql` (photos and videos, plus the `media` storage bucket)
+3. `supabase/seed.sql` (season, the 4 teams, current rosters)
+4. *(Optional, for testing only)* `supabase/demo-seed.sql` (sample games). Remove it before the season:
    ```sql
    delete from public.games where id like 'demo-%';
    delete from public.opponents where id like 'demo-%';
@@ -69,7 +70,7 @@ Migrations in `supabase/migrations/` use the Supabase CLI's naming (`YYYYMMDDHHM
 create schema if not exists supabase_migrations;
 create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
 insert into supabase_migrations.schema_migrations (version, name)
-values ('20260929000000', 'pilot_schema') on conflict do nothing;
+values ('20260929000000', 'pilot_schema'), ('20260930000000', 'media') on conflict do nothing;
 ```
 
 ## Google Calendar (schedule page)

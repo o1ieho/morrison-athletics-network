@@ -1,9 +1,9 @@
 import { connection } from "next/server";
 import { isDemoMode } from "@/lib/config";
 import { getServerDemoDataset } from "@/lib/demo/dataset";
-import { mapAnnouncement, mapGame, mapOpponent, mapRosterRow, mapTeam } from "@/lib/mappers";
+import { mapAnnouncement, mapGame, mapMedia, mapOpponent, mapRosterRow, mapTeam } from "@/lib/mappers";
 import { createSessionClient } from "@/lib/supabase/server";
-import type { Announcement, GameSummary, Opponent, RosterPlayer, Team } from "@/lib/types";
+import type { Announcement, GameSummary, MediaItem, Opponent, RosterPlayer, Team } from "@/lib/types";
 
 export type AdminData = {
   teams: Team[];
@@ -11,6 +11,7 @@ export type AdminData = {
   games: GameSummary[];
   roster: RosterPlayer[];
   announcements: Announcement[];
+  media: MediaItem[];
 };
 
 /** Everything the admin screens show, read as the signed-in admin (so drafts are included). */
@@ -31,6 +32,7 @@ export async function getAdminData(): Promise<AdminData> {
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
       roster: demo.roster,
       announcements: [],
+      media: [],
     };
   }
 
@@ -39,7 +41,7 @@ export async function getAdminData(): Promise<AdminData> {
   if (seasonError) throw new Error(`Could not load the season: ${seasonError.message}`);
   const seasonId = season?.id ?? "";
 
-  const [teams, opponents, games, roster, announcements] = await Promise.all([
+  const [teams, opponents, games, roster, announcements, media] = await Promise.all([
     db.from("teams").select("*").order("level", { ascending: false }).order("gender"),
     db.from("opponents").select("*").order("name"),
     db
@@ -53,8 +55,9 @@ export async function getAdminData(): Promise<AdminData> {
       .eq("season_id", seasonId)
       .order("jersey_number", { ascending: true, nullsFirst: false }),
     db.from("announcements").select("*").order("created_at", { ascending: false }),
+    db.from("media").select("*").order("created_at", { ascending: false }),
   ]);
-  for (const [what, result] of Object.entries({ teams, opponents, games, roster, announcements })) {
+  for (const [what, result] of Object.entries({ teams, opponents, games, roster, announcements, media })) {
     if (result.error) throw new Error(`Could not load ${what}: ${result.error.message}`);
   }
 
@@ -64,5 +67,6 @@ export async function getAdminData(): Promise<AdminData> {
     games: games.data!.map((row) => ({ ...mapGame(row), team: mapTeam(row.team), opponent: mapOpponent(row.opponent) })),
     roster: roster.data!.map(mapRosterRow),
     announcements: announcements.data!.map(mapAnnouncement),
+    media: media.data!.map(mapMedia),
   };
 }

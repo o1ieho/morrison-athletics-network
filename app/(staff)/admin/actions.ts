@@ -248,3 +248,20 @@ export async function deleteAnnouncement(form: FormData) {
   if (error) fail(error, "Deleting the post");
   revalidatePath("/", "layout");
 }
+
+// ---------------------------------------------------------------- Media
+
+export async function deleteMedia(form: FormData) {
+  const db = await adminClient();
+  const id = String(form.get("id") ?? "");
+  const { data: item, error: readError } = await db.from("media").select("storage_paths").eq("id", id).single();
+  if (readError) fail(readError, "Finding the media item");
+  const paths = (item?.storage_paths as string[] | null) ?? [];
+  if (paths.length) {
+    const { error } = await db.storage.from("media").remove(paths);
+    if (error) throw new Error(`Deleting the files: ${error.message}`);
+  }
+  const { error } = await db.from("media").delete().eq("id", id);
+  if (error) fail(error, "Deleting the media item");
+  revalidatePath("/", "layout");
+}

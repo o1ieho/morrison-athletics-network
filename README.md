@@ -4,7 +4,8 @@ Live scores, box scores, schedules and season stats for Morrison Academy Taipei 
 
 - **Public site:** home, schedule (from the athletics Google Calendar), teams with sortable season stats, player pages, and game pages (live scoreboard, play-by-play, box score, shot chart).
 - **Operator console** (`/operator`): fast play entry for one person, offline-safe.
-- **Admin** (`/admin`): games, rosters, opponents, news.
+- **Media** (`/media`): photos and YouTube highlights, uploaded by admins.
+- **Admin** (`/admin`): games, rosters, opponents, news, media.
 
 Stack: Next.js 16 (App Router), Supabase (Postgres, auth, realtime), TypeScript.
 

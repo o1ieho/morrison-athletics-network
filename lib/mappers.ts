@@ -1,7 +1,7 @@
 // Converts raw Supabase rows (snake_case) into app types. Shared by server
 // queries and realtime handlers, which receive the same raw row shape.
 
-import type { Announcement, Game, GameEvent, Opponent, RosterPlayer, SeasonStatLine, StatLine, Team } from "./types";
+import type { Announcement, Game, GameEvent, MediaItem, Opponent, RosterPlayer, SeasonStatLine, StatLine, Team } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -107,5 +107,20 @@ export function mapAnnouncement(row: Row): Announcement {
     expiresAt: strOrNull(row.expires_at),
     teamId: strOrNull(row.team_id),
     athleteId: strOrNull(row.athlete_id),
+  };
+}
+
+export function mapMedia(row: Row): MediaItem {
+  return {
+    id: str(row.id),
+    kind: row.kind === "video" ? "video" : "photo",
+    title: str(row.title),
+    url: str(row.url),
+    thumbnailUrl: strOrNull(row.thumbnail_url),
+    width: numOrNull(row.width),
+    height: numOrNull(row.height),
+    teamId: strOrNull(row.team_id),
+    gameId: strOrNull(row.game_id),
+    createdAt: str(row.created_at),
   };
 }

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseKey, supabaseUrl } from "@/lib/config";
-import { mapAnnouncement, mapEvent, mapGame, mapOpponent, mapRosterRow, mapSeasonStatLine, mapStatLine, mapTeam } from "@/lib/mappers";
+import { mapAnnouncement, mapEvent, mapGame, mapMedia, mapOpponent, mapRosterRow, mapSeasonStatLine, mapStatLine, mapTeam } from "@/lib/mappers";
 import type { GameSummary, Season } from "@/lib/types";
 import { DataError, type DataSource } from "./source";
 
@@ -106,6 +106,12 @@ export function createSupabaseSource(): DataSource {
         .order("published_at", { ascending: false });
       if (error) throw new DataError("announcements", error);
       return data.map(mapAnnouncement);
+    },
+
+    async getMedia(limit = 200) {
+      const { data, error } = await db.from("media").select("*").order("created_at", { ascending: false }).limit(limit);
+      if (error) throw new DataError("media", error);
+      return data.map(mapMedia);
     },
   };
 

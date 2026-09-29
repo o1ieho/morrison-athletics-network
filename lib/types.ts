@@ -147,3 +147,17 @@ export type Announcement = {
   teamId: string | null;
   athleteId: string | null;
 };
+
+export type MediaItem = {
+  id: string;
+  kind: "photo" | "video";
+  title: string;
+  /** Full-size photo, or the YouTube link for a video. */
+  url: string;
+  thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  teamId: string | null;
+  gameId: string | null;
+  createdAt: string;
+};

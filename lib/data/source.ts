@@ -2,6 +2,7 @@ import type {
   Announcement,
   GameEvent,
   GameSummary,
+  MediaItem,
   RosterPlayer,
   Season,
   SeasonStatLine,
@@ -25,6 +26,8 @@ export interface DataSource {
   getPlayerGameLog(athleteId: string): Promise<Array<{ gameId: string; line: StatLine }>>;
   getTeamRecords(): Promise<TeamRecord[]>;
   getAnnouncements(): Promise<Announcement[]>;
+  /** Newest first. */
+  getMedia(limit?: number): Promise<MediaItem[]>;
 }
 
 export class DataError extends Error {

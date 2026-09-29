@@ -11,6 +11,7 @@ const NAV = [
   { href: "/schedule", label: "Schedule" },
   { href: "/teams", label: "Teams" },
   { href: "/news", label: "News" },
+  { href: "/media", label: "Media" },
 ];
 
 function isCurrent(pathname: string, href: string) {
@@ -26,13 +27,11 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="container">
-        <Link href="/" className="brand" aria-label="MAT Athletics home">
-          <span className="brand-mark">
-            <Image src="/brand/broncos-head-cropped.png" alt="" width={34} height={34} priority />
-          </span>
+        <Link href="/" className="brand" aria-label="MAT Athletics Basketball home">
+          <Image className="brand-mark" src="/brand/broncos-head-cropped.png" alt="" width={60} height={66} priority />
           <span className="brand-text">
             <strong>MAT Athletics</strong>
-            <span>Broncos Basketball</span>
+            <span>Basketball</span>
           </span>
         </Link>
         <nav className="nav" aria-label="Main">

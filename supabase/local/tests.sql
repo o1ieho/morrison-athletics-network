@@ -173,5 +173,32 @@ select pg_temp.check((
   select ftm = 1 and fta = 2 from public.player_game_stats where game_id = 't-game' and athlete_id = 'kyan-cheng'
 ), 'free throws made/attempted');
 
+-- Media ----------------------------------------------------------------------
+
+select pg_temp.act_as('anon');
+select pg_temp.expect_error(
+  $$insert into public.media (kind, url) values ('photo', 'https://example.com/x.jpg')$$,
+  'anon cannot add media');
+select pg_temp.expect_error(
+  $$insert into storage.objects (bucket_id, name) values ('media', 'x.jpg')$$,
+  'anon cannot upload to the media bucket');
+reset role;
+
+select pg_temp.act_as('operator');
+select pg_temp.expect_error(
+  $$insert into public.media (kind, url) values ('photo', 'https://example.com/x.jpg')$$,
+  'stat operators cannot add media');
+reset role;
+
+select pg_temp.act_as('admin');
+insert into storage.objects (bucket_id, name) values ('media', 'photos/test.jpg');
+insert into public.media (kind, title, url, storage_paths) values ('photo', 'Test', 'https://example.com/photos/test.jpg', '{photos/test.jpg}');
+select pg_temp.check((select count(*) = 1 from public.media where title = 'Test'), 'admins can upload and add media');
+reset role;
+
+select pg_temp.act_as('anon');
+select pg_temp.check((select count(*) >= 1 from public.media), 'anyone can view media');
+reset role;
+
 \echo 'All database tests passed.'
 rollback;
