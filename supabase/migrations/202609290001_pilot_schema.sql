@@ -230,6 +230,14 @@ language sql
 stable
 as $$ select public.has_role(array['admin']::public.ssn_role[]); $$;
 
+-- Lets clients measure how far their device clock is from the server's, so a
+-- phone with the wrong time still shows the right game clock.
+create function public.server_time()
+returns timestamptz
+language sql
+stable
+as $$ select now(); $$;
+
 create function public.game_clock_now(g public.games)
 returns integer
 language sql

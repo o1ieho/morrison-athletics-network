@@ -1,119 +1,149 @@
-export type Sport = {
-  id: string;
-  slug: string;
-  name: string;
-  season: "fall" | "winter" | "spring" | "year-round";
-  summary: string;
-};
-
+export type GameStatus = "scheduled" | "live" | "final" | "postponed" | "canceled";
+export type ScoringMode = "live" | "manual";
+export type FoulReset = "quarter" | "half";
 export type TeamSeasonStatus = "upcoming" | "active" | "completed" | "not_offered";
+
+/** "team" is the MAT team, "opponent" the other team, "game" is for period markers. */
+export type Side = "team" | "opponent" | "game";
+
+export type EventType =
+  | "fg2_made"
+  | "fg2_miss"
+  | "fg3_made"
+  | "fg3_miss"
+  | "ft_made"
+  | "ft_miss"
+  | "rebound_off"
+  | "rebound_def"
+  | "assist"
+  | "steal"
+  | "block"
+  | "turnover"
+  | "foul"
+  | "timeout"
+  | "period_start"
+  | "period_end";
+
+export type Season = {
+  id: string;
+  name: string;
+};
 
 export type Team = {
   id: string;
   slug: string;
   name: string;
-  city: string;
-  sportId: string;
-  sport: string;
-  level: string;
-  gender?: "boys" | "girls" | "coed" | "opponent";
+  gender: "boys" | "girls" | "coed";
+  level: "varsity" | "jv";
   conference: string;
-  record: string;
   seasonStatus: TeamSeasonStatus;
-  isOpponent?: boolean;
 };
 
-export type Athlete = {
+export type Opponent = {
   id: string;
+  name: string;
+  shortName: string;
+};
+
+export type RosterPlayer = {
+  athleteId: string;
   slug: string;
-  number?: number;
   name: string;
   teamId: string;
-  position: string;
-  grade: string;
-  height?: string;
-  weight?: string;
-  country?: string;
-  bio: string;
-  points: number;
-  rebounds: number;
-  assists: number;
-  recentGames: Array<{ game: string; pts: number; reb: number; ast: number }>;
-  teammates: string[];
+  number: number | null;
+  position: string | null;
+  grade: string | null;
+  height: string | null;
 };
-
-export type GameStatus = "scheduled" | "live" | "final" | "postponed" | "canceled";
 
 export type Game = {
   id: string;
-  slug: string;
   seasonId: string;
-  sport: string;
-  status: GameStatus;
-  displayStatus: string;
+  teamId: string;
+  opponentId: string;
+  isHome: boolean;
   startsAt: string;
   location: string;
-  away: { teamId: string; team: string; score: number };
-  home: { teamId: string; team: string; score: number };
-  leaders: string;
+  status: GameStatus;
+  scoringMode: ScoringMode;
+  teamScore: number;
+  opponentScore: number;
+  periodCount: number;
+  periodLengthSeconds: number;
+  overtimeLengthSeconds: number;
+  foulReset: FoulReset;
+  bonusThreshold: number;
+  currentPeriod: number;
+  clockRunning: boolean;
+  clockSecondsLeft: number;
+  clockAnchorAt: string | null;
+  updatedAt: string;
 };
+
+/** A game joined with the names needed to display it. */
+export type GameSummary = Game & {
+  team: Team;
+  opponent: Opponent;
+};
+
+export type GameEvent = {
+  id: string;
+  gameId: string;
+  side: Side;
+  athleteId: string | null;
+  type: EventType;
+  period: number;
+  clockSecondsLeft: number;
+  points: number;
+  shotX: number | null;
+  shotY: number | null;
+  createdAt: string;
+  voidedAt: string | null;
+};
+
+export type StatLine = {
+  pts: number;
+  fgm: number;
+  fga: number;
+  fg3m: number;
+  fg3a: number;
+  ftm: number;
+  fta: number;
+  oreb: number;
+  dreb: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  tov: number;
+  pf: number;
+};
+
+export type SeasonStatLine = StatLine & {
+  athleteId: string;
+  teamId: string;
+  gp: number;
+};
+
+export type TeamRecord = {
+  teamId: string;
+  wins: number;
+  losses: number;
+  ties: number;
+};
+
+export type AnnouncementCategory = "game-day" | "team-news" | "transportation" | "achievement" | "department";
 
 export type Announcement = {
   id: string;
   slug: string;
   title: string;
-  category: "game-day" | "team-news" | "transportation" | "achievement" | "department";
-  author: string;
+  category: AnnouncementCategory;
   summary: string;
   body: string;
-  publishedAt: string;
-  expiresAt?: string;
   pinned: boolean;
-  coverImage?: string;
-  teamId?: string;
-  athleteId?: string;
-};
-
-export type MediaAsset = {
-  id: string;
-  title: string;
-  type: "photo" | "gallery" | "video" | "livestream";
-  url: string;
-  caption: string;
-  featured?: boolean;
-  teamId?: string;
-  gameId?: string;
-  athleteId?: string;
-};
-
-export type Coach = {
-  id: string;
-  name: string;
-  title: string;
-  teamIds: string[];
-};
-
-export type GameEventType =
-  | "free_throw_made"
-  | "field_goal_made"
-  | "three_point_made"
-  | "rebound"
-  | "assist"
-  | "steal"
-  | "block"
-  | "foul"
-  | "turnover";
-
-export type GameEvent = {
-  id: string;
-  gameId: string;
-  teamId: string;
-  athleteId?: string;
-  type: GameEventType;
-  period: number;
-  clock: string;
-  points: number;
-  description: string;
-  x?: number;
-  y?: number;
+  publishedAt: string | null;
+  expiresAt: string | null;
+  teamId: string | null;
+  athleteId: string | null;
 };

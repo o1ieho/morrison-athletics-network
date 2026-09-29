@@ -1,6 +1,0 @@
-[
-  { "id": "MAT", "name": "Broncos", "city": "MAT", "conference": "School Basketball" },
-  { "id": "TIG", "name": "Tigers", "city": "Taipei Academy", "conference": "School Basketball" },
-  { "id": "HUS", "name": "Huskies", "city": "Riverdale High", "conference": "School Basketball" },
-  { "id": "KNG", "name": "Knights", "city": "Summit Prep", "conference": "School Basketball" }
-]

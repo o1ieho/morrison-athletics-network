@@ -15,18 +15,21 @@ function mulberry32(seed) {
   };
 }
 
-// Half court in feet: 50 wide, 47 deep, basket 5.25 ft from the baseline.
-const COURT_W = 50;
-const COURT_H = 47;
-const BASKET = { x: 25, y: 5.25 };
+// FIBA half court in meters: 15 wide, 14 deep, basket 1.575 m from the baseline.
+// Matches components/court.tsx.
+const COURT_W = 15;
+const COURT_H = 14;
+const BASKET = { x: 7.5, y: 1.575 };
 
 function shotSpot(rand, isThree) {
   for (;;) {
     const angle = rand() * Math.PI;
-    const radius = isThree ? 22.5 + rand() * 4 : 2 + rand() * 17;
+    const radius = isThree ? 6.9 + rand() * 1.2 : 0.4 + rand() * 5.6;
     const x = BASKET.x + Math.cos(angle) * radius;
     const y = BASKET.y + Math.sin(angle) * radius;
-    if (x > 1 && x < COURT_W - 1 && y > 0.5 && y < COURT_H - 1) {
+    // Threes must be beyond the corner lines too (6.6 m from the basket's axis).
+    const beyondCorner = Math.abs(x - BASKET.x) > 6.7 || y > BASKET.y + 1.5;
+    if (x > 0.3 && x < COURT_W - 0.3 && y > 0.2 && y < COURT_H - 0.5 && (!isThree || beyondCorner)) {
       return { shot_x: +(x / COURT_W).toFixed(4), shot_y: +(y / COURT_H).toFixed(4) };
     }
   }
