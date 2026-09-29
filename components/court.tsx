@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { CORNER_ARC_Y, COURT } from "@/lib/court";
 
-type Shot = { id: string; x: number; y: number; made: boolean; label?: string; pending?: boolean };
+type Shot = { id: string; x: number; y: number; made: boolean; label?: string; pending?: boolean; latest?: boolean };
 
 const { width: W, depth: D, basket: B } = COURT;
 
@@ -33,7 +33,7 @@ export function Court({ shots = [], children, className = "" }: { shots?: Shot[]
       {shots.map((shot) => (
         <span
           key={shot.id}
-          className={`shot ${shot.pending ? "pending" : shot.made ? "made" : "missed"}`}
+          className={`shot ${shot.pending ? "pending" : shot.made ? "made" : "missed"} ${shot.latest ? "latest" : ""}`}
           style={{ left: `${shot.x * 100}%`, top: `${shot.y * 100}%` }}
           title={shot.label}
         />

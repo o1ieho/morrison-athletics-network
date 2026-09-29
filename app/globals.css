@@ -149,13 +149,16 @@ p {
   padding-bottom: 56px;
 }
 
+/* minmax(0, 1fr): children shrink to the screen instead of widening the page. */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
 .stack-lg {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(28px, 5vw, 48px);
 }
 
@@ -692,104 +695,6 @@ a.game-row:hover {
 
 /* Featured scoreboard (home page + game page header) */
 
-.scoreboard {
-  overflow: hidden;
-  background: var(--brand);
-  color: white;
-}
-
-.scoreboard-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--silver);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.scoreboard-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: clamp(16px, 4vw, 28px) clamp(12px, 3vw, 28px);
-}
-
-.sb-team {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  min-width: 0;
-  text-align: center;
-}
-
-.sb-team-name {
-  max-width: 100%;
-  overflow: hidden;
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 3.2vw, 1.5rem);
-  font-weight: 700;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.sb-team-meta {
-  color: var(--silver);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.sb-score {
-  font-family: var(--font-display);
-  font-size: clamp(3rem, 12vw, 5.5rem);
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.sb-team.trailing .sb-score {
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.sb-center {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  min-width: 84px;
-}
-
-.sb-period {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.sb-clock {
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 5vw, 2.2rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.sb-clock.stopped {
-  color: var(--silver);
-}
-
-.sb-fouls {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  color: var(--silver);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 .bonus {
   padding: 1px 6px;
   background: #f5c542;
@@ -797,22 +702,6 @@ a.game-row:hover {
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-}
-
-.sb-mark {
-  width: 56px;
-  height: 56px;
-  background: white;
-  padding: 4px;
-}
-
-.sb-mark.opponent {
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 700;
 }
 
 /* ---------------------------------------------------------------- Tabs */
@@ -926,57 +815,6 @@ a.game-row:hover {
 
 /* ---------------------------------------------------------------- Play-by-play */
 
-.pbp {
-  display: grid;
-}
-
-.pbp-period {
-  padding: 8px 18px;
-  background: var(--green-50);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  color: var(--green-700);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.pbp-row {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.92rem;
-}
-
-.pbp-row.scoring {
-  font-weight: 600;
-}
-
-.pbp-row.opponent {
-  color: var(--muted);
-}
-
-.pbp-row.team {
-  border-left: 3px solid var(--green-600);
-  padding-left: 15px;
-}
-
-.pbp-clock {
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.82rem;
-}
-
-.pbp-score {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--ink);
-}
-
 /* ---------------------------------------------------------------- Court */
 
 .court {
@@ -1085,50 +923,6 @@ a.game-row:hover {
 }
 
 /* Leader rows */
-
-.leader {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--line);
-}
-
-.leader:first-child {
-  border-top: 0;
-}
-
-.leader .jersey-badge {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  background: var(--brand);
-  color: white;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.leader-value {
-  display: grid;
-  justify-items: end;
-  line-height: 1.1;
-}
-
-.leader-value strong {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  color: var(--ink);
-}
-
-.leader-value span {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
 
 /* Team cards */
 
@@ -2227,4 +2021,499 @@ a.team-card:hover {
 
 .sparkline-dot {
   fill: var(--ink);
+}
+
+/* ---------------------------------------------------------------- Gamecast (game page) */
+
+.gc-board {
+  background: var(--brand);
+  color: white;
+}
+
+.gc-board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.gc-board-body {
+  display: grid;
+  /* minmax(0, …) lets wide content (tables, court) shrink instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 18px 16px;
+}
+
+@media (min-width: 1000px) {
+  .gc-board-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 28px;
+  }
+}
+
+.gc-matchup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.gc-team {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.gc-team.reverse {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.gc-mark {
+  flex-shrink: 0;
+  width: clamp(40px, 6vw, 56px);
+  height: clamp(40px, 6vw, 56px);
+  object-fit: contain;
+}
+
+.gc-mark.opponent {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+}
+
+.gc-team-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gc-team-text strong {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.6vw, 1.7rem);
+  font-weight: 400;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gc-team-text > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.gc-team.reverse .gc-team-text > span {
+  justify-content: flex-end;
+}
+
+.gc-score {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 7vw, 4rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-team.reverse .gc-score {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.gc-team.trailing .gc-score {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.gc-status {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 84px;
+  text-align: center;
+}
+
+.gc-period {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.gc-clock {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-clock.stopped {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 560px) {
+  /* On phones, keep name + score on one line and drop the fouls detail under the scoreboard grid. */
+  .gc-matchup {
+    gap: 8px;
+  }
+
+  .gc-team {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 8px;
+    text-align: center;
+  }
+
+  .gc-team.reverse {
+    flex-direction: row;
+    text-align: center;
+  }
+
+  .gc-team-text > span,
+  .gc-team.reverse .gc-team-text > span {
+    justify-content: center;
+  }
+
+  .gc-score,
+  .gc-team.reverse .gc-score {
+    width: 100%;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+/* Line score inside the scoreboard */
+
+.gc-line {
+  overflow-x: auto;
+}
+
+.gc-line table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-line th,
+.gc-line td {
+  min-width: 34px;
+  padding: 5px 8px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.gc-line thead th {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.gc-line tbody th {
+  padding-left: 0;
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gc-line tbody tr + tr {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gc-line .total {
+  background: rgba(0, 0, 0, 0.18);
+  font-weight: 700;
+}
+
+@media (min-width: 1000px) {
+  .gc-line {
+    min-width: 300px;
+    padding-left: 24px;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Three-column body: court | plays | leaders + stats */
+
+.gc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.gc-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-content: start;
+}
+
+@media (min-width: 760px) {
+  .gc-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .gc-side {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1180px) {
+  .gc-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  }
+
+  .gc-side {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+}
+
+.gc-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gc-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 8px;
+}
+
+.gc-panel-head h2 {
+  font-size: 1.35rem;
+}
+
+.gc-panel-foot {
+  padding: 10px 16px 14px;
+}
+
+.gc-last-play {
+  display: grid;
+  gap: 2px;
+  padding: 10px 16px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.gc-last-play .muted {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.gc-last-label {
+  color: #f5c542;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.gc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 0 16px 10px;
+}
+
+.gc-controls .tabs {
+  margin: 0;
+  border-bottom-width: 0;
+}
+
+.gc-select {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.gc-court {
+  padding: 0 16px;
+}
+
+/* The play feed fills its column and scrolls on its own. */
+.gc-plays {
+  max-height: 520px;
+}
+
+@media (min-width: 760px) {
+  .gc-plays {
+    max-height: none;
+  }
+}
+
+.gc-period-filter {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px 10px;
+  overflow-x: auto;
+}
+
+.gc-period-filter button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gc-period-filter [aria-selected="true"] {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: white;
+}
+
+.gc-feed {
+  flex: 1 1 0;
+  min-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.gc-feed-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.gc-feed-row.team {
+  border-left: 3px solid var(--brand);
+  padding-left: 13px;
+}
+
+.gc-feed-row.opponent {
+  color: var(--muted);
+}
+
+.gc-feed-row.scoring {
+  font-weight: 700;
+}
+
+.gc-feed-time {
+  color: var(--faint);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gc-feed-time b {
+  color: var(--muted);
+}
+
+.gc-feed-score {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-feed-marker {
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gc-feed-empty {
+  padding: 24px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Leaders and team stats */
+
+.gc-leaders-list {
+  display: grid;
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+
+.gc-leaders .leader-bars h3 {
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.gc-leaders .leader-bars ol {
+  gap: 6px;
+}
+
+.gc-leaders .leader-bar-value {
+  font-size: 1.15rem;
+}
+
+.gc-stats {
+  display: grid;
+  margin: 0;
+  padding: 0 16px 12px;
+}
+
+.gc-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.gc-stats div:last-child {
+  border-bottom: 0;
+}
+
+.gc-stats dt {
+  color: var(--muted);
+}
+
+.gc-stats dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Latest shot on the court gets a ring. */
+.shot.latest {
+  z-index: 2;
+  outline: 3px solid #f5c542;
+  outline-offset: 2px;
+}
+
+.shot.missed.latest {
+  outline-offset: 0;
 }

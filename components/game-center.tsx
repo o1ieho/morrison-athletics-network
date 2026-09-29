@@ -7,7 +7,6 @@ import { Countdown } from "@/components/countdown";
 import { Court, CourtLegend } from "@/components/court";
 import { GameFlowChart } from "@/components/stats/game-flow";
 import { LeaderBars } from "@/components/stats/leader-bars";
-import { LineScoreTable } from "@/components/stats/line-score";
 import { ZoneChart, ZoneLegend } from "@/components/stats/zone-chart";
 import {
   EVENT_META,
@@ -19,17 +18,21 @@ import {
   periodLabel,
   playerLabel,
   teamFouls,
+  timeoutsUsed,
   type BoxScore,
 } from "@/lib/basketball";
 import { formatDateTime, teamLabel } from "@/lib/format";
-import { elapsedSeconds, gameFlow, lineScore, zoneStats } from "@/lib/game-analysis";
+import { elapsedSeconds, gameFlow, lineScore, zoneStats, type LineScore } from "@/lib/game-analysis";
 import type { LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
 import type { GameEvent, GameSummary, RosterPlayer } from "@/lib/types";
 import { useFlashKey } from "@/lib/use-flash";
 
-type Tab = "plays" | "box" | "flow" | "roster";
-
+/**
+ * The game page, laid out like a TV "gamecast": a compact scoreboard with the
+ * line score, then the court, the play-by-play feed and the leaders side by
+ * side, so a live game fits on one screen. Box score and game flow sit below.
+ */
 export function GameCenter({ initial }: { initial: LiveSnapshot }) {
   const live = useLiveGame(initial.game.id, initial);
   const game = live.game ?? initial.game;
@@ -37,50 +40,48 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
   const events = live.events;
 
   const box = useMemo(() => computeBoxScore(events, roster), [events, roster]);
+  const line = useMemo(() => lineScore(game, events), [game, events]);
   const started = game.status === "live" || game.status === "final" || activeEvents(events).length > 0;
-  const [tab, setTab] = useState<Tab>(game.status === "final" ? "box" : started ? "plays" : "roster");
+  const [tab, setTab] = useState<"box" | "flow">("box");
 
-  const tabs: Array<{ id: Tab; label: string }> = started
-    ? [
-        { id: "plays", label: "Play-by-play" },
-        { id: "box", label: "Box score" },
-        { id: "flow", label: "Game flow" },
-      ]
-    : [{ id: "roster", label: "Roster" }];
+  if (!started) {
+    return (
+      <div className="stack">
+        <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={null} />
+        <section>
+          <div className="section-head">
+            <h2>Roster</h2>
+          </div>
+          <RosterList roster={roster} />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="stack">
-      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} />
-      {started && (
-        <section className="card" aria-label="Score by quarter">
-          <LineScoreTable line={lineScore(game, events)} opponentName={game.opponent.shortName} />
-        </section>
-      )}
-      {started && <Leaders box={box} />}
+      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={line} />
 
-      <div className="tabs" role="tablist">
-        {tabs.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === entry.id}
-            onClick={() => setTab(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
+      <div className="gc-grid">
+        <ShotPanel game={game} events={events} roster={roster} />
+        <PlaysPanel game={game} events={events} roster={roster} />
+        <aside className="gc-side">
+          <LeadersPanel box={box} />
+          <TeamStatsPanel game={game} box={box} events={events} />
+        </aside>
       </div>
 
-      {tab === "plays" && (
-        // Shot chart sits above the play-by-play, like ESPN's gamecast.
-        <>
-          <ShotChart events={events} roster={roster} />
-          <PlayByPlay game={game} events={events} roster={roster} />
-        </>
-      )}
-      {tab === "box" && <BoxScoreTable game={game} box={box} />}
-      {tab === "flow" && (
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "box"} onClick={() => setTab("box")}>
+          Box score
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "flow"} onClick={() => setTab("flow")}>
+          Game flow
+        </button>
+      </div>
+      {tab === "box" ? (
+        <BoxScoreTable game={game} box={box} />
+      ) : (
         <section className="card card-pad" aria-label="Game flow">
           <GameFlowChart
             flow={gameFlow(game, events)}
@@ -90,7 +91,6 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
           />
         </section>
       )}
-      {tab === "roster" && <RosterList roster={roster} />}
     </div>
   );
 }
@@ -102,109 +102,338 @@ function Scoreboard({
   events,
   clock,
   status,
+  line,
 }: {
   game: GameSummary;
   events: GameEvent[];
   clock: number;
   status: string;
+  line: LineScore | null;
 }) {
   const isLive = game.status === "live";
   const hasScore = isLive || game.status === "final";
+  const teamFlash = useFlashKey(game.teamScore);
+  const opponentFlash = useFlashKey(game.opponentScore);
   const teamFoulCount = teamFouls(game, events, "team");
   const opponentFoulCount = teamFouls(game, events, "opponent");
 
-  let center: React.ReactNode;
-  if (isLive) {
-    center = (
-      <>
-        <span className="sb-period">{periodLabel(game.currentPeriod, game.periodCount)}</span>
-        <span className={`sb-clock ${game.clockRunning ? "" : "stopped"}`} suppressHydrationWarning>{formatClock(clock)}</span>
-        <span className="badge live">Live</span>
-      </>
-    );
-  } else if (game.status === "final") {
-    center = (
-      <>
-        <span className="badge final">Final</span>
-        {game.currentPeriod > game.periodCount && <span className="sb-period">{periodLabel(game.currentPeriod, game.periodCount)}</span>}
-      </>
-    );
-  } else {
-    center =
-      game.status === "scheduled" ? (
-        <>
-          <Countdown to={game.startsAt} />
-          <span className="sb-fouls">{game.isHome ? "Home" : "Away"}</span>
-        </>
-      ) : (
-        <span className="badge muted">{game.status}</span>
-      );
-  }
-
-  const teamLeading = game.teamScore >= game.opponentScore;
-  const teamFlash = useFlashKey(game.teamScore);
-  const opponentFlash = useFlashKey(game.opponentScore);
+  const team = {
+    name: "Broncos",
+    score: game.teamScore,
+    flash: teamFlash,
+    side: game.isHome ? "Home" : "Away",
+    fouls: teamFoulCount,
+    timeouts: timeoutsUsed(events, "team"),
+    bonus: opponentFoulCount >= game.bonusThreshold,
+    trailing: hasScore && game.teamScore < game.opponentScore,
+  };
+  const opponent = {
+    name: game.opponent.shortName,
+    score: game.opponentScore,
+    flash: opponentFlash,
+    side: game.isHome ? "Away" : "Home",
+    fouls: opponentFoulCount,
+    timeouts: timeoutsUsed(events, "opponent"),
+    bonus: teamFoulCount >= game.bonusThreshold,
+    trailing: hasScore && game.opponentScore < game.teamScore,
+  };
 
   return (
-    <section className="scoreboard" aria-label="Scoreboard">
-      <div className="scoreboard-top">
+    <section className="gc-board" aria-label="Scoreboard">
+      <div className="gc-board-meta">
         <span>
           {teamLabel(game.team)} · {formatDateTime(game.startsAt)}
+          {game.location ? ` · ${game.location}` : ""}
         </span>
-        <span>{isLive ? <span className={`connection ${status === "live" ? "live" : ""}`}>{status === "live" ? "Live updates" : "Reconnecting…"}</span> : game.location}</span>
+        {isLive && <span className={`connection ${status === "live" ? "live" : ""}`}>{status === "live" ? "Live updates" : "Reconnecting…"}</span>}
       </div>
-      <div className="scoreboard-body">
-        <div className={`sb-team ${hasScore && !teamLeading ? "trailing" : ""}`}>
-          <Image className="sb-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} priority />
-          <span className="sb-team-name">Broncos</span>
-          <span className="sb-team-meta">{game.isHome ? "Home" : "Away"}</span>
-          {hasScore && (
-            <span key={teamFlash} className={`sb-score ${teamFlash ? "flash" : ""}`}>
-              {game.teamScore}
-            </span>
-          )}
-          {isLive && <Fouls count={teamFoulCount} bonus={opponentFoulCount >= game.bonusThreshold} />}
+
+      <div className="gc-board-body">
+        <div className="gc-matchup">
+          <TeamScore team={team} mark={<Image className="gc-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} priority />} hasScore={hasScore} showFouls={isLive} />
+
+          <div className="gc-status">
+            {isLive ? (
+              <>
+                <span className="badge live">Live</span>
+                <span className="gc-period">{periodLabel(game.currentPeriod, game.periodCount)}</span>
+                <span className={`gc-clock ${game.clockRunning ? "" : "stopped"}`} suppressHydrationWarning>
+                  {formatClock(clock)}
+                </span>
+              </>
+            ) : game.status === "final" ? (
+              <>
+                <span className="badge final">Final</span>
+                {game.currentPeriod > game.periodCount && <span className="gc-period">{periodLabel(game.currentPeriod, game.periodCount)}</span>}
+              </>
+            ) : game.status === "scheduled" ? (
+              <Countdown to={game.startsAt} />
+            ) : (
+              <span className="badge muted">{game.status}</span>
+            )}
+          </div>
+
+          <TeamScore
+            team={opponent}
+            mark={
+              <span className="gc-mark opponent" aria-hidden="true">
+                {game.opponent.shortName.slice(0, 1)}
+              </span>
+            }
+            hasScore={hasScore}
+            showFouls={isLive}
+            reverse
+          />
         </div>
-        <div className="sb-center">{center}</div>
-        <div className={`sb-team ${hasScore && teamLeading && game.teamScore !== game.opponentScore ? "trailing" : ""}`}>
-          <span className="sb-mark opponent" aria-hidden="true">
-            {game.opponent.shortName.slice(0, 1)}
-          </span>
-          <span className="sb-team-name">{game.opponent.shortName}</span>
-          <span className="sb-team-meta">{game.isHome ? "Away" : "Home"}</span>
-          {hasScore && (
-            <span key={opponentFlash} className={`sb-score ${opponentFlash ? "flash" : ""}`}>
-              {game.opponentScore}
-            </span>
-          )}
-          {isLive && <Fouls count={opponentFoulCount} bonus={teamFoulCount >= game.bonusThreshold} />}
-        </div>
+
+        {line && (
+          <div className="gc-line">
+            <table>
+              <thead>
+                <tr>
+                  <th />
+                  {line.labels.map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                  <th>T</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Broncos", line.team],
+                  [game.opponent.shortName, line.opponent],
+                ].map(([name, values]) => (
+                  <tr key={name as string}>
+                    <th scope="row">{name as string}</th>
+                    {(values as number[]).map((value, index) => (
+                      <td key={line.labels[index]}>{value}</td>
+                    ))}
+                    <td className="total">{(values as number[]).reduce((sum, value) => sum + value, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-/** Team fouls this period; "Bonus" means this team shoots free throws on the other's fouls. */
-function Fouls({ count, bonus }: { count: number; bonus: boolean }) {
+type TeamSide = {
+  name: string;
+  score: number;
+  flash: number;
+  side: string;
+  fouls: number;
+  timeouts: number;
+  bonus: boolean;
+  trailing: boolean;
+};
+
+function TeamScore({
+  team,
+  mark,
+  hasScore,
+  showFouls,
+  reverse = false,
+}: {
+  team: TeamSide;
+  mark: React.ReactNode;
+  hasScore: boolean;
+  showFouls: boolean;
+  reverse?: boolean;
+}) {
   return (
-    <span className="sb-fouls">
-      Fouls {count}
-      {bonus && <span className="bonus">Bonus</span>}
-    </span>
+    <div className={`gc-team ${reverse ? "reverse" : ""} ${team.trailing ? "trailing" : ""}`}>
+      {mark}
+      <span className="gc-team-text">
+        <strong>{team.name}</strong>
+        <span>
+          {team.side}
+          {showFouls && ` · Fouls ${team.fouls} · TO ${team.timeouts}`}
+          {showFouls && team.bonus && <span className="bonus">Bonus</span>}
+        </span>
+      </span>
+      {hasScore && (
+        <span key={team.flash} className={`gc-score ${team.flash ? "flash" : ""}`}>
+          {team.score}
+        </span>
+      )}
+    </div>
   );
 }
 
-// ---------------------------------------------------------------- Leaders
+// ---------------------------------------------------------------- Shot chart panel
 
-function Leaders({ box }: { box: BoxScore }) {
+function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
+  const [playerId, setPlayerId] = useState("all");
+  const [view, setView] = useState<"shots" | "zones">("shots");
+  const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
+
+  const active = activeEvents(events);
+  const shots = active.filter(
+    (event) =>
+      event.side === "team" &&
+      event.shotX !== null &&
+      event.shotY !== null &&
+      EVENT_META[event.type].isFieldGoal &&
+      (playerId === "all" || event.athleteId === playerId),
+  );
+  const shooters = roster.filter((player) => active.some((event) => event.athleteId === player.athleteId && event.shotX !== null));
+  const made = shots.filter((shot) => EVENT_META[shot.type].made).length;
+  const lastPlay = [...active].reverse().find((event) => event.side !== "game");
+  const latestShotId = shots[shots.length - 1]?.id;
+
+  return (
+    <section className="card gc-panel" aria-label="Shot chart">
+      {lastPlay && (
+        <div className="gc-last-play">
+          <span className="gc-last-label">Last play</span>
+          <span>
+            <span className="muted">
+              {periodLabel(lastPlay.period, game.periodCount)} {formatClock(lastPlay.clockSecondsLeft)} ·{" "}
+            </span>
+            {describeEvent(lastPlay, {
+              team: "Broncos",
+              opponent: game.opponent.shortName,
+              player: lastPlay.athleteId ? players.get(lastPlay.athleteId) : undefined,
+              periodCount: game.periodCount,
+            })}
+          </span>
+        </div>
+      )}
+      <div className="gc-panel-head">
+        <h2>Shot chart</h2>
+        <span className="muted small tabular">
+          {made}/{shots.length} · {percentage(made, shots.length)}
+        </span>
+      </div>
+      <div className="gc-controls">
+        <div className="tabs small" role="tablist">
+          {(["shots", "zones"] as const).map((option) => (
+            <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)}>
+              {option === "shots" ? "Every shot" : "By zone"}
+            </button>
+          ))}
+        </div>
+        <label>
+          <span className="visually-hidden">Player</span>
+          <select className="gc-select" value={playerId} onChange={(event) => setPlayerId(event.target.value)}>
+            <option value="all">All Broncos</option>
+            {shooters.map((player) => (
+              <option key={player.athleteId} value={player.athleteId}>
+                {playerLabel(player)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="gc-court">
+        {view === "shots" ? (
+          <Court
+            shots={shots.map((shot) => ({
+              id: shot.id,
+              x: shot.shotX!,
+              y: shot.shotY!,
+              made: EVENT_META[shot.type].made,
+              latest: shot.id === latestShotId,
+              label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
+            }))}
+          />
+        ) : (
+          <ZoneChart stats={zoneStats(events, playerId === "all" ? undefined : playerId)} />
+        )}
+      </div>
+      <div className="gc-panel-foot">{view === "shots" ? <CourtLegend /> : <ZoneLegend />}</div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- Play-by-play panel
+
+function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
+  const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
+  const [period, setPeriod] = useState<number | "all">("all");
+  // Plays present when the page loaded don't animate; anything after does.
+  const seen = useRef<Set<string> | null>(null);
+  seen.current ??= new Set(events.map((event) => event.id));
+
+  // Running score after each play, newest first.
+  const rows = useMemo(() => {
+    let team = 0;
+    let opponent = 0;
+    return activeEvents(events)
+      .map((event) => {
+        if (event.side === "team") team += event.points;
+        if (event.side === "opponent") opponent += event.points;
+        return { event, team, opponent };
+      })
+      .reverse();
+  }, [events]);
+
+  const periods = [...new Set(rows.map((row) => row.event.period))].sort((a, b) => a - b);
+  const shown = period === "all" ? rows : rows.filter((row) => row.event.period === period);
+
+  return (
+    <section className="card gc-panel gc-plays" aria-label="Play-by-play">
+      <div className="gc-panel-head">
+        <h2>Play-by-play</h2>
+      </div>
+      <div className="gc-period-filter" role="tablist" aria-label="Quarter">
+        {(["all", ...periods] as const).map((option) => (
+          <button key={option} type="button" role="tab" aria-selected={period === option} onClick={() => setPeriod(option)}>
+            {option === "all" ? "All" : periodLabel(option, game.periodCount)}
+          </button>
+        ))}
+      </div>
+      <ol className="gc-feed">
+        {shown.map(({ event, team, opponent }) => {
+          const scoring = event.points > 0;
+          if (event.side === "game") {
+            return (
+              <li key={event.id} className="gc-feed-marker">
+                {describeEvent(event, { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount })}
+              </li>
+            );
+          }
+          return (
+            <li key={event.id} className={`gc-feed-row ${event.side} ${scoring ? "scoring" : ""} ${seen.current!.has(event.id) ? "" : "pbp-new"}`}>
+              <span className="gc-feed-time">
+                {period === "all" && <b>{periodLabel(event.period, game.periodCount)}</b>} {formatClock(event.clockSecondsLeft)}
+              </span>
+              <span className="gc-feed-text">
+                {describeEvent(event, {
+                  team: "Broncos",
+                  opponent: game.opponent.shortName,
+                  player: event.athleteId ? players.get(event.athleteId) : undefined,
+                  periodCount: game.periodCount,
+                })}
+              </span>
+              <span className="gc-feed-score">{scoring ? `${team}–${opponent}` : ""}</span>
+            </li>
+          );
+        })}
+        {!shown.length && <li className="gc-feed-empty">No plays yet.</li>}
+      </ol>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- Side column
+
+function LeadersPanel({ box }: { box: BoxScore }) {
   const top = (key: "pts" | "reb" | "ast") =>
     [...box.players]
       .sort((a, b) => b.line[key] - a.line[key])
       .slice(0, 3)
       .map(({ player, line }) => ({ player, value: line[key] }));
   return (
-    <section className="card card-pad" aria-label="Game leaders">
-      <div className="leaders-grid">
+    <section className="card gc-panel gc-leaders" aria-label="Game leaders">
+      <div className="gc-panel-head">
+        <h2>Leaders</h2>
+      </div>
+      <div className="gc-leaders-list">
         <LeaderBars title="Points" rows={top("pts")} unit="PTS" />
         <LeaderBars title="Rebounds" rows={top("reb")} unit="REB" />
         <LeaderBars title="Assists" rows={top("ast")} unit="AST" />
@@ -213,59 +442,42 @@ function Leaders({ box }: { box: BoxScore }) {
   );
 }
 
-// ---------------------------------------------------------------- Play-by-play
-
-function PlayByPlay({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
-  const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
-  // Plays present when the page loaded don't animate; anything after does.
-  const seen = useRef<Set<string> | null>(null);
-  seen.current ??= new Set(events.map((event) => event.id));
-
-  // Running score after each play, then newest first.
-  const rows = useMemo(() => {
-    let team = 0;
-    let opponent = 0;
-    const withScore = activeEvents(events).map((event) => {
-      if (event.side === "team") team += event.points;
-      if (event.side === "opponent") opponent += event.points;
-      return { event, team, opponent };
-    });
-    return withScore.reverse();
-  }, [events]);
-
-  if (!rows.length) return <div className="card empty">No plays yet. They&apos;ll appear here as the game happens.</div>;
-
-  const groups: Array<{ period: number; rows: typeof rows }> = [];
-  for (const row of rows) {
-    const last = groups[groups.length - 1];
-    if (last && last.period === row.event.period) last.rows.push(row);
-    else groups.push({ period: row.event.period, rows: [row] });
-  }
-
+function TeamStatsPanel({ game, box, events }: { game: GameSummary; box: BoxScore; events: GameEvent[] }) {
+  const t = box.team;
+  const rows: Array<[string, string]> = [
+    ["Field goals", `${t.fgm}-${t.fga} · ${percentage(t.fgm, t.fga)}`],
+    ["3-pointers", `${t.fg3m}-${t.fg3a} · ${percentage(t.fg3m, t.fg3a)}`],
+    ["Free throws", `${t.ftm}-${t.fta} · ${percentage(t.ftm, t.fta)}`],
+    ["Rebounds", `${t.reb} (${t.oreb} off)`],
+    ["Assists", String(t.ast)],
+    ["Steals · Blocks", `${t.stl} · ${t.blk}`],
+    ["Turnovers", String(t.tov)],
+  ];
   return (
-    <section className="card pbp" aria-label="Play-by-play">
-      {groups.map((group) => (
-        <div key={`${group.period}-${group.rows[0].event.id}`}>
-          <div className="pbp-period">{periodLabel(group.period, game.periodCount)}</div>
-          {group.rows.map(({ event, team, opponent }) => {
-            const scoring = event.points > 0;
-            return (
-              <div key={event.id} className={`pbp-row ${event.side} ${scoring ? "scoring" : ""} ${seen.current!.has(event.id) ? "" : "pbp-new"}`}>
-                <span className="pbp-clock">{event.side === "game" ? "" : formatClock(event.clockSecondsLeft)}</span>
-                <span>
-                  {describeEvent(event, {
-                    team: "Broncos",
-                    opponent: game.opponent.shortName,
-                    player: event.athleteId ? players.get(event.athleteId) : undefined,
-                    periodCount: game.periodCount,
-                  })}
-                </span>
-                <span className="pbp-score">{scoring ? `${team}–${opponent}` : ""}</span>
-              </div>
-            );
-          })}
+    <section className="card gc-panel" aria-label="Team stats">
+      <div className="gc-panel-head">
+        <h2>Broncos stats</h2>
+      </div>
+      <dl className="gc-stats">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+        <div>
+          <dt>Fouls (game)</dt>
+          <dd>
+            {t.pf} – {box.opponent.pf} {game.opponent.shortName}
+          </dd>
         </div>
-      ))}
+        <div>
+          <dt>Timeouts used</dt>
+          <dd>
+            {timeoutsUsed(events, "team")} – {timeoutsUsed(events, "opponent")} {game.opponent.shortName}
+          </dd>
+        </div>
+      </dl>
     </section>
   );
 }
@@ -379,70 +591,6 @@ function BoxScoreTable({ game, box }: { game: GameSummary; box: BoxScore }) {
           No stats recorded: {bench.map(({ player }) => playerLabel(player)).join(", ")}
         </p>
       )}
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------- Shot chart
-
-function ShotChart({ events, roster }: { events: GameEvent[]; roster: RosterPlayer[] }) {
-  const [playerId, setPlayerId] = useState("all");
-  const [view, setView] = useState<"shots" | "zones">("shots");
-  const shots = activeEvents(events).filter(
-    (event) =>
-      event.side === "team" &&
-      event.shotX !== null &&
-      event.shotY !== null &&
-      EVENT_META[event.type].isFieldGoal &&
-      (playerId === "all" || event.athleteId === playerId),
-  );
-  const shooters = roster.filter((player) =>
-    events.some((event) => event.athleteId === player.athleteId && event.shotX !== null && !event.voidedAt),
-  );
-  const made = shots.filter((shot) => EVENT_META[shot.type].made).length;
-
-  return (
-    <section className="card card-pad stack" aria-label="Shot chart">
-      <div className="section-head" style={{ marginBottom: 0 }}>
-        <label className="field" style={{ minWidth: 220 }}>
-          <span className="visually-hidden">Player</span>
-          <select value={playerId} onChange={(event) => setPlayerId(event.target.value)}>
-            <option value="all">All Broncos</option>
-            {shooters.map((player) => (
-              <option key={player.athleteId} value={player.athleteId}>
-                {playerLabel(player)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="muted small tabular">
-          {made}/{shots.length} FG · {percentage(made, shots.length)}
-        </span>
-      </div>
-      <div className="tabs small" role="tablist" style={{ margin: 0 }}>
-        {(["shots", "zones"] as const).map((option) => (
-          <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)}>
-            {option === "shots" ? "Every shot" : "By zone"}
-          </button>
-        ))}
-      </div>
-      <div style={{ maxWidth: 560, width: "100%", margin: "0 auto" }}>
-        {view === "shots" ? (
-          <Court
-            shots={shots.map((shot) => ({
-              id: shot.id,
-              x: shot.shotX!,
-              y: shot.shotY!,
-              made: EVENT_META[shot.type].made,
-              label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
-            }))}
-          />
-        ) : (
-          <ZoneChart stats={zoneStats(events, playerId === "all" ? undefined : playerId)} />
-        )}
-      </div>
-      {view === "shots" ? <CourtLegend /> : <ZoneLegend />}
-      {!shots.length && <p className="muted small">Shot locations appear when the operator marks them on the court.</p>}
     </section>
   );
 }
