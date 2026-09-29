@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-label="Morrison basketball court">
+  <defs>
+    <linearGradient id="court" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d9b16c"/>
+      <stop offset="1" stop-color="#9f6d2d"/>
+    </linearGradient>
+    <linearGradient id="overlay" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#08111f" stop-opacity=".78"/>
+      <stop offset=".58" stop-color="#08111f" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#7a1118" stop-opacity=".55"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#court)"/>
+  <path d="M100 65h1000v590H100z" fill="none" stroke="#f8ead6" stroke-width="10"/>
+  <path d="M600 65v590" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <circle cx="600" cy="360" r="92" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <path d="M100 210h185v300H100M1100 210H915v300h185" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <circle cx="285" cy="360" r="80" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <circle cx="915" cy="360" r="80" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <path d="M100 120c185 44 286 123 286 240S285 556 100 600M1100 120c-185 44-286 123-286 240s101 196 286 240" fill="none" stroke="#f8ead6" stroke-width="8"/>
+  <rect width="1200" height="720" fill="url(#overlay)"/>
+  <text x="84" y="600" fill="#fff7e8" font-family="Arial, sans-serif" font-size="74" font-weight="800">MORRISON ATHLETICS</text>
+</svg>

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "g1",
+    "league": "School Basketball",
+    "status": "Q4 03:12",
+    "live": true,
+    "away": { "teamId": "TIG", "team": "Tigers", "score": 56 },
+    "home": { "teamId": "MAT", "team": "MAT Broncos", "score": 62 },
+    "leaders": "Austin Dam 22 PTS, Corison Kang 11 REB"
+  },
+  {
+    "id": "g2",
+    "league": "School Basketball",
+    "status": "Q3 05:44",
+    "live": true,
+    "away": { "teamId": "MAT", "team": "MAT Broncos", "score": 47 },
+    "home": { "teamId": "HUS", "team": "Huskies", "score": 45 },
+    "leaders": "Kyan Cheng 18 PTS, Ethan Flowers 9 REB"
+  },
+  {
+    "id": "g3",
+    "league": "School Basketball",
+    "status": "Final",
+    "live": false,
+    "away": { "teamId": "KNG", "team": "Knights", "score": 51 },
+    "home": { "teamId": "MAT", "team": "MAT Broncos", "score": 58 },
+    "leaders": "Daniel Guo 17 PTS, Ryan J. Lin 7 AST"
+  }
+]
