@@ -78,7 +78,7 @@ export function createDemoSource(): DataSource {
       });
     },
     async getAnnouncements() {
-      return [];
+      return [...dataset.announcements].sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
     },
     async getMedia() {
       return [];

@@ -149,6 +149,17 @@ export function createLocalLiveService(): LiveService {
       };
     },
 
+    subscribeGames(onGame) {
+      getChannel();
+      const listener = (message: Message) => {
+        if (message.kind === "game") onGame(message.game);
+      };
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
     async measureServerOffset() {
       return 0;
     },

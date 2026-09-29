@@ -85,24 +85,60 @@ const opponents = [
   ["demo-huskies", "Riverdale Huskies", "Huskies"],
   ["demo-knights", "Summit Prep Knights", "Knights"],
   ["demo-eagles", "Lakeside Eagles", "Eagles"],
+  ["demo-falcons", "South Valley Falcons", "Falcons"],
+  ["demo-panthers", "Westbrook Panthers", "Panthers"],
 ];
 
 const boys = athletes.filter((athlete) => athlete.team === "bbb-v").map((athlete) => athlete.id);
 
+// Different players lead different games: rotate who the simulator favours.
+function rotated(ids, by) {
+  const shift = by % ids.length;
+  return [...ids.slice(shift), ...ids.slice(0, shift)];
+}
+
 // Start times are relative to when the seed is loaded, so the demo always looks current.
 const DAY = 86400;
+const HOUR = 3600;
+const final = (id, team, opponent, isHome, daysAgo, seed, location) => ({
+  id,
+  team,
+  opponent,
+  isHome,
+  startsIn: -daysAgo * DAY,
+  location,
+  status: "final",
+  simulation: { seed, periods: 4, athleteIds: rotated(boys, seed) },
+  clock: { period: 4, secondsLeft: 0 },
+});
+const manualFinal = (id, team, opponent, isHome, daysAgo, score, location) => ({
+  id,
+  team,
+  opponent,
+  isHome,
+  startsIn: -daysAgo * DAY,
+  location,
+  status: "final",
+  manualScore: score,
+});
+const upcoming = (id, team, opponent, isHome, startsIn, location) => ({
+  id,
+  team,
+  opponent,
+  isHome,
+  startsIn,
+  roundToHour: true,
+  location,
+  status: "scheduled",
+});
+
 const games = [
-  {
-    id: "demo-final-knights",
-    team: "bbb-v",
-    opponent: "demo-knights",
-    isHome: true,
-    startsIn: -6 * DAY,
-    location: "Morrison Gym",
-    status: "final",
-    simulation: { seed: 7, periods: 4 },
-    clock: { period: 4, secondsLeft: 0 },
-  },
+  // Boys Varsity: a run of tracked games, one live now, two coming up.
+  final("demo-final-falcons", "bbb-v", "demo-falcons", true, 34, 3, "Morrison Gym"),
+  final("demo-final-panthers", "bbb-v", "demo-panthers", false, 27, 11, "Westbrook Gym"),
+  final("demo-final-eagles-b", "bbb-v", "demo-eagles", true, 20, 5, "Morrison Gym"),
+  final("demo-final-tigers-b", "bbb-v", "demo-tigers", false, 13, 17, "Taipei Academy"),
+  final("demo-final-knights", "bbb-v", "demo-knights", true, 6, 7, "Morrison Gym"),
   {
     id: "demo-live-huskies",
     team: "bbb-v",
@@ -111,28 +147,50 @@ const games = [
     startsIn: -40 * 60,
     location: "Riverdale Gym",
     status: "live",
-    simulation: { seed: 21, periods: 3, stopAtSecondsLeft: 214 },
+    simulation: { seed: 21, periods: 3, stopAtSecondsLeft: 214, athleteIds: rotated(boys, 2) },
     clock: { period: 3, secondsLeft: 214 },
   },
+  upcoming("demo-upcoming-tigers", "bbb-v", "demo-tigers", true, 1 * DAY + 3 * HOUR, "Morrison Gym"),
+  upcoming("demo-upcoming-falcons", "bbb-v", "demo-falcons", false, 8 * DAY, "South Valley Gym"),
+  // Other teams: results typed in (no operator), so records still add up.
+  manualFinal("demo-final-eagles", "gbb-v", "demo-eagles", false, 9, [54, 48], "Lakeside Gym"),
+  manualFinal("demo-final-panthers-g", "gbb-v", "demo-panthers", true, 16, [41, 47], "Morrison Gym"),
+  upcoming("demo-upcoming-tigers-g", "gbb-v", "demo-tigers", true, 2 * DAY + 2 * HOUR, "Morrison Gym"),
+  manualFinal("demo-final-knights-jv", "bbb-jv", "demo-knights", true, 11, [38, 35], "Morrison Gym"),
+  upcoming("demo-upcoming-eagles-jv", "bbb-jv", "demo-eagles", false, 5 * DAY, "Lakeside Gym"),
+  manualFinal("demo-final-falcons-jvg", "gbb-jv", "demo-falcons", false, 12, [29, 33], "South Valley Gym"),
+];
+
+const news = [
   {
-    id: "demo-upcoming-tigers",
+    slug: "demo-senior-night",
+    title: "Senior Night this Friday: Broncos host the Tigers",
+    category: "game-day",
+    summary: "Come out early to honor our seniors before tip-off. Wear green!",
+    body: "Senior Night ceremonies start 20 minutes before tip-off in the Morrison Gym.\n\nFamilies of seniors, please arrive by 4:30 PM.",
     team: "bbb-v",
-    opponent: "demo-tigers",
-    isHome: true,
-    startsIn: 3 * DAY,
-    roundToHour: true,
-    location: "Morrison Gym",
-    status: "scheduled",
+    pinned: true,
+    daysAgo: 1,
   },
   {
-    id: "demo-final-eagles",
-    team: "gbb-v",
-    opponent: "demo-eagles",
-    isHome: false,
-    startsIn: -9 * DAY,
-    location: "Lakeside Gym",
-    status: "final",
-    manualScore: [54, 48],
+    slug: "demo-bus-change",
+    title: "Bus time change for Saturday's away games",
+    category: "transportation",
+    summary: "Buses now leave at 7:15 AM from the front gate.",
+    body: "Because of road work, buses for Saturday's away games leave 15 minutes earlier, at 7:15 AM from the front gate.",
+    team: null,
+    pinned: false,
+    daysAgo: 3,
+  },
+  {
+    slug: "demo-knights-recap",
+    title: "Broncos fall 51–52 to Knights in a one-point thriller",
+    category: "team-news",
+    summary: "A late Knights bucket decided a game that featured eleven lead changes.",
+    body: "The Broncos battled back from an early deficit but came up one point short against Summit Prep.\n\nFull box score and shot chart are on the game page.",
+    team: "bbb-v",
+    pinned: false,
+    daysAgo: 6,
   },
 ];
 
@@ -147,7 +205,10 @@ function startsAtSql(game) {
 
 const demo = [
   "-- Generated by scripts/generate-seed.mjs. DEMO DATA ONLY: never run this on the real project.",
-  "-- Remove with: delete from public.games where id like 'demo-%'; delete from public.opponents where id like 'demo-%';",
+  "-- Remove with:",
+  "--   delete from public.games where id like 'demo-%';",
+  "--   delete from public.opponents where id like 'demo-%';",
+  "--   delete from public.announcements where slug like 'demo-%';",
   "begin;",
   "",
   `insert into public.opponents (id, name, short_name) values\n${values(opponents)}\non conflict (id) do nothing;`,
@@ -174,6 +235,13 @@ for (const game of games) {
   demo.push("");
 }
 
+demo.push(
+  `insert into public.announcements (slug, title, category, summary, body, team_id, pinned, published_at) values\n${news
+    .map((item) => `  (${[item.slug, item.title, item.category, item.summary, item.body, item.team, item.pinned].map(sql).join(", ")}, now() - interval '${item.daysAgo} days')`)
+    .join(",\n")}\non conflict (slug) do nothing;`,
+  "",
+);
+
 demo.push("commit;", "");
 writeFileSync(path.join(root, "supabase", "demo-seed.sql"), demo.join("\n"));
 
@@ -196,6 +264,16 @@ const demoJson = {
     height: athlete.height ?? null,
   })),
   opponents: opponents.map(([id, name, shortName]) => ({ id, name, shortName })),
+  news: news.map((item) => ({
+    slug: item.slug,
+    title: item.title,
+    category: item.category,
+    summary: item.summary,
+    body: item.body.replaceAll("\\n", "\n"),
+    teamId: item.team,
+    pinned: item.pinned,
+    daysAgo: item.daysAgo,
+  })),
   games: games.map((game) => ({
     id: game.id,
     teamId: game.team,

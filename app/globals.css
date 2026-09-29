@@ -246,10 +246,14 @@ p {
   font-weight: 700;
 }
 
-.site-header {
+/* Header and live bar stick together at the top. */
+.site-top {
   position: sticky;
   top: 0;
   z-index: 40;
+}
+
+.site-header {
   background: var(--brand);
   color: white;
 }
@@ -1793,4 +1797,434 @@ a.team-card:hover {
 .admin-media figcaption {
   display: grid;
   gap: 4px;
+}
+
+/* ---------------------------------------------------------------- Live bar + motion */
+
+.live-bar {
+  background: var(--ink);
+  color: white;
+}
+
+.live-bar .container {
+  display: flex;
+  gap: 28px;
+  min-height: 42px;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.live-bar .container::-webkit-scrollbar {
+  display: none;
+}
+
+.live-bar-item {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.live-bar-item:hover .live-bar-score {
+  text-decoration: underline;
+}
+
+.live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--live);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.live-tag::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: white;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.live-bar-team {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.live-bar-score {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.live-bar-score b {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+.live-bar-dash {
+  margin: 0 4px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.live-bar-clock {
+  color: #f5c542;
+  font-weight: 700;
+}
+
+/* A number that just changed: a quick yellow flash and pop. */
+.flash {
+  animation: score-flash 1.2s ease-out;
+}
+
+@keyframes score-flash {
+  0% {
+    color: #f5c542;
+    transform: scale(1.25);
+  }
+  30% {
+    color: #f5c542;
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* A play that just arrived slides in and fades its highlight. */
+.pbp-new {
+  animation: play-in 1.6s ease-out;
+}
+
+@keyframes play-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+    background: #fff4d6;
+  }
+  15% {
+    opacity: 1;
+    transform: none;
+    background: #fff4d6;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .pbp-new,
+  .live-tag::before {
+    animation: none;
+  }
+}
+
+.countdown {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.countdown-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.countdown-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------- Stat graphics */
+
+:root {
+  --zone-empty: #eceeec;
+  --zone-1: #d5dcd7;
+  --zone-2: #a9bbb0;
+  --zone-3: #6f8f7d;
+  --zone-4: #345041;
+}
+
+.line-score th,
+.line-score td {
+  text-align: center;
+}
+
+.line-score th:last-child,
+.line-score td:last-child {
+  background: var(--panel);
+}
+
+.leaders-grid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 820px) {
+  .leaders-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.leader-bars h3 {
+  margin-bottom: 10px;
+  font-size: 1.35rem;
+  text-transform: uppercase;
+}
+
+.leader-bars ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leader-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name value"
+    "bar bar";
+  gap: 4px 12px;
+  align-items: end;
+}
+
+.leader-bar-name {
+  grid-area: name;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader-bar-name .jersey {
+  display: inline-block;
+  min-width: 24px;
+  color: var(--faint);
+}
+
+.leader-bar-name:hover {
+  color: var(--brand);
+}
+
+.leader-bar-track {
+  grid-area: bar;
+  display: block;
+  height: 10px;
+  background: var(--panel);
+}
+
+.leader-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.leader-bars li:first-child .leader-bar-fill {
+  background: var(--ink);
+}
+
+.leader-bar-value {
+  grid-area: value;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.leader-bar-value small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-family: var(--font-body-stack);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Game flow */
+
+.flow {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.flow svg {
+  width: 100%;
+  height: auto;
+}
+
+.flow-area-team {
+  fill: var(--brand);
+}
+
+.flow-area-opponent {
+  fill: #b9c0bb;
+}
+
+.flow-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.flow-zero {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.flow-grid {
+  stroke: var(--line-strong);
+  stroke-dasharray: 3 4;
+}
+
+.flow-axis {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.flow-legend,
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.flow-legend span,
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+
+.swatch.team {
+  background: var(--brand);
+}
+
+.swatch.opponent {
+  background: #b9c0bb;
+}
+
+.flow-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.flow-stats div {
+  padding: 10px 14px;
+  background: var(--panel);
+}
+
+.flow-stats dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.flow-stats dd {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+/* Shot zones */
+
+.zone-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.zone {
+  stroke: white;
+  stroke-width: 0.06;
+}
+
+.zone-lines {
+  fill: none;
+  stroke: rgba(13, 20, 17, 0.35);
+  stroke-width: 0.05;
+}
+
+.zone-label text {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.75px;
+  text-anchor: middle;
+}
+
+.zone-label .zone-count {
+  font-family: var(--font-body-stack);
+  font-size: 0.42px;
+  font-weight: 700;
+}
+
+.zone-label.small text {
+  font-size: 0.42px;
+}
+
+.zone-label.small .zone-count {
+  font-size: 0.3px;
+}
+
+.tabs.small button {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.85rem;
+}
+
+/* Sparkline */
+
+.sparkline {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.sparkline svg {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+}
+
+.sparkline-line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2.5;
+}
+
+.sparkline-avg {
+  stroke: var(--muted);
+  stroke-dasharray: 4 4;
+}
+
+.sparkline-dot {
+  fill: var(--ink);
 }

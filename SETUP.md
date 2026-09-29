@@ -24,7 +24,10 @@ Then, in **SQL Editor**, run these files in order:
    ```sql
    delete from public.games where id like 'demo-%';
    delete from public.opponents where id like 'demo-%';
+   delete from public.announcements where slug like 'demo-%';
    ```
+
+   Demo games have an **Auto-play** button in the operator console that plays the game by itself, which is handy for showing off the live features. It never appears on real games.
 
 ## 2. Lock down sign-ups and create staff accounts
 

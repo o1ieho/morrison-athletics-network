@@ -2,15 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Countdown } from "@/components/countdown";
 import { Court, CourtLegend } from "@/components/court";
+import { GameFlowChart } from "@/components/stats/game-flow";
+import { LeaderBars } from "@/components/stats/leader-bars";
+import { LineScoreTable } from "@/components/stats/line-score";
+import { ZoneChart, ZoneLegend } from "@/components/stats/zone-chart";
 import {
   EVENT_META,
   activeEvents,
   computeBoxScore,
   describeEvent,
   formatClock,
-  gameLeaders,
   percentage,
   periodLabel,
   playerLabel,
@@ -18,11 +22,13 @@ import {
   type BoxScore,
 } from "@/lib/basketball";
 import { formatDateTime, teamLabel } from "@/lib/format";
+import { elapsedSeconds, gameFlow, lineScore, zoneStats } from "@/lib/game-analysis";
 import type { LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
 import type { GameEvent, GameSummary, RosterPlayer } from "@/lib/types";
+import { useFlashKey } from "@/lib/use-flash";
 
-type Tab = "plays" | "box" | "shots" | "roster";
+type Tab = "plays" | "box" | "flow" | "shots" | "roster";
 
 export function GameCenter({ initial }: { initial: LiveSnapshot }) {
   const live = useLiveGame(initial.game.id, initial);
@@ -38,6 +44,7 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
     ? [
         { id: "plays", label: "Play-by-play" },
         { id: "box", label: "Box score" },
+        { id: "flow", label: "Game flow" },
         { id: "shots", label: "Shot chart" },
       ]
     : [{ id: "roster", label: "Roster" }];
@@ -45,6 +52,11 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
   return (
     <div className="stack">
       <Scoreboard game={game} events={events} clock={live.clock} status={live.status} />
+      {started && (
+        <section className="card" aria-label="Score by quarter">
+          <LineScoreTable line={lineScore(game, events)} opponentName={game.opponent.shortName} />
+        </section>
+      )}
       {started && <Leaders box={box} />}
 
       <div className="tabs" role="tablist">
@@ -63,6 +75,16 @@ export function GameCenter({ initial }: { initial: LiveSnapshot }) {
 
       {tab === "plays" && <PlayByPlay game={game} events={events} roster={roster} />}
       {tab === "box" && <BoxScoreTable game={game} box={box} />}
+      {tab === "flow" && (
+        <section className="card card-pad" aria-label="Game flow">
+          <GameFlowChart
+            flow={gameFlow(game, events)}
+            game={game}
+            opponentName={game.opponent.shortName}
+            nowT={game.status === "live" ? elapsedSeconds(game, game.currentPeriod, live.clock) : undefined}
+          />
+        </section>
+      )}
       {tab === "shots" && <ShotChart events={events} roster={roster} />}
       {tab === "roster" && <RosterList roster={roster} />}
     </div>
@@ -92,7 +114,7 @@ function Scoreboard({
     center = (
       <>
         <span className="sb-period">{periodLabel(game.currentPeriod, game.periodCount)}</span>
-        <span className={`sb-clock ${game.clockRunning ? "" : "stopped"}`}>{formatClock(clock)}</span>
+        <span className={`sb-clock ${game.clockRunning ? "" : "stopped"}`} suppressHydrationWarning>{formatClock(clock)}</span>
         <span className="badge live">Live</span>
       </>
     );
@@ -104,10 +126,20 @@ function Scoreboard({
       </>
     );
   } else {
-    center = <span className="badge muted">{game.status === "scheduled" ? "Upcoming" : game.status}</span>;
+    center =
+      game.status === "scheduled" ? (
+        <>
+          <Countdown to={game.startsAt} />
+          <span className="sb-fouls">{game.isHome ? "Home" : "Away"}</span>
+        </>
+      ) : (
+        <span className="badge muted">{game.status}</span>
+      );
   }
 
   const teamLeading = game.teamScore >= game.opponentScore;
+  const teamFlash = useFlashKey(game.teamScore);
+  const opponentFlash = useFlashKey(game.opponentScore);
 
   return (
     <section className="scoreboard" aria-label="Scoreboard">
@@ -119,10 +151,14 @@ function Scoreboard({
       </div>
       <div className="scoreboard-body">
         <div className={`sb-team ${hasScore && !teamLeading ? "trailing" : ""}`}>
-          <Image className="sb-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} />
+          <Image className="sb-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} priority />
           <span className="sb-team-name">Broncos</span>
           <span className="sb-team-meta">{game.isHome ? "Home" : "Away"}</span>
-          {hasScore && <span className="sb-score">{game.teamScore}</span>}
+          {hasScore && (
+            <span key={teamFlash} className={`sb-score ${teamFlash ? "flash" : ""}`}>
+              {game.teamScore}
+            </span>
+          )}
           {isLive && <Fouls count={teamFoulCount} bonus={opponentFoulCount >= game.bonusThreshold} />}
         </div>
         <div className="sb-center">{center}</div>
@@ -132,7 +168,11 @@ function Scoreboard({
           </span>
           <span className="sb-team-name">{game.opponent.shortName}</span>
           <span className="sb-team-meta">{game.isHome ? "Away" : "Home"}</span>
-          {hasScore && <span className="sb-score">{game.opponentScore}</span>}
+          {hasScore && (
+            <span key={opponentFlash} className={`sb-score ${opponentFlash ? "flash" : ""}`}>
+              {game.opponentScore}
+            </span>
+          )}
           {isLive && <Fouls count={opponentFoulCount} bonus={teamFoulCount >= game.bonusThreshold} />}
         </div>
       </div>
@@ -153,38 +193,17 @@ function Fouls({ count, bonus }: { count: number; bonus: boolean }) {
 // ---------------------------------------------------------------- Leaders
 
 function Leaders({ box }: { box: BoxScore }) {
-  const leaders = gameLeaders(box);
-  const rows = (
-    [
-      ["pts", "Points"],
-      ["reb", "Rebounds"],
-      ["ast", "Assists"],
-    ] as const
-  )
-    .map(([key, label]) => ({ key, label, leader: leaders[key] }))
-    .filter((row) => row.leader && row.leader.value > 0);
-  if (!rows.length) return null;
-
+  const top = (key: "pts" | "reb" | "ast") =>
+    [...box.players]
+      .sort((a, b) => b.line[key] - a.line[key])
+      .slice(0, 3)
+      .map(({ player, line }) => ({ player, value: line[key] }));
   return (
-    <section className="card" aria-label="Game leaders">
-      <div className="card-head">
-        <h2>Game leaders</h2>
-      </div>
-      <div className="grid-2" style={{ gap: 0 }}>
-        {rows.map(({ key, label, leader }) => (
-          <Link key={key} href={`/players/${leader!.player.slug}`} className="leader">
-            <span className="jersey-badge">{leader!.player.number ?? "–"}</span>
-            <span>
-              <strong>{leader!.player.name}</strong>
-              <br />
-              <span className="muted small">{leader!.player.position ?? ""}</span>
-            </span>
-            <span className="leader-value">
-              <strong>{leader!.value}</strong>
-              <span>{label}</span>
-            </span>
-          </Link>
-        ))}
+    <section className="card card-pad" aria-label="Game leaders">
+      <div className="leaders-grid">
+        <LeaderBars title="Points" rows={top("pts")} unit="PTS" />
+        <LeaderBars title="Rebounds" rows={top("reb")} unit="REB" />
+        <LeaderBars title="Assists" rows={top("ast")} unit="AST" />
       </div>
     </section>
   );
@@ -194,6 +213,9 @@ function Leaders({ box }: { box: BoxScore }) {
 
 function PlayByPlay({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
   const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
+  // Plays present when the page loaded don't animate; anything after does.
+  const seen = useRef<Set<string> | null>(null);
+  seen.current ??= new Set(events.map((event) => event.id));
 
   // Running score after each play, then newest first.
   const rows = useMemo(() => {
@@ -224,7 +246,7 @@ function PlayByPlay({ game, events, roster }: { game: GameSummary; events: GameE
           {group.rows.map(({ event, team, opponent }) => {
             const scoring = event.points > 0;
             return (
-              <div key={event.id} className={`pbp-row ${event.side} ${scoring ? "scoring" : ""}`}>
+              <div key={event.id} className={`pbp-row ${event.side} ${scoring ? "scoring" : ""} ${seen.current!.has(event.id) ? "" : "pbp-new"}`}>
                 <span className="pbp-clock">{event.side === "game" ? "" : formatClock(event.clockSecondsLeft)}</span>
                 <span>
                   {describeEvent(event, {
@@ -361,6 +383,7 @@ function BoxScoreTable({ game, box }: { game: GameSummary; box: BoxScore }) {
 
 function ShotChart({ events, roster }: { events: GameEvent[]; roster: RosterPlayer[] }) {
   const [playerId, setPlayerId] = useState("all");
+  const [view, setView] = useState<"shots" | "zones">("shots");
   const shots = activeEvents(events).filter(
     (event) =>
       event.side === "team" &&
@@ -392,18 +415,29 @@ function ShotChart({ events, roster }: { events: GameEvent[]; roster: RosterPlay
           {made}/{shots.length} FG · {percentage(made, shots.length)}
         </span>
       </div>
-      <div style={{ maxWidth: 560, width: "100%", margin: "0 auto" }}>
-        <Court
-          shots={shots.map((shot) => ({
-            id: shot.id,
-            x: shot.shotX!,
-            y: shot.shotY!,
-            made: EVENT_META[shot.type].made,
-            label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
-          }))}
-        />
+      <div className="tabs small" role="tablist" style={{ margin: 0 }}>
+        {(["shots", "zones"] as const).map((option) => (
+          <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)}>
+            {option === "shots" ? "Every shot" : "By zone"}
+          </button>
+        ))}
       </div>
-      <CourtLegend />
+      <div style={{ maxWidth: 560, width: "100%", margin: "0 auto" }}>
+        {view === "shots" ? (
+          <Court
+            shots={shots.map((shot) => ({
+              id: shot.id,
+              x: shot.shotX!,
+              y: shot.shotY!,
+              made: EVENT_META[shot.type].made,
+              label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
+            }))}
+          />
+        ) : (
+          <ZoneChart stats={zoneStats(events, playerId === "all" ? undefined : playerId)} />
+        )}
+      </div>
+      {view === "shots" ? <CourtLegend /> : <ZoneLegend />}
       {!shots.length && <p className="muted small">Shot locations appear when the operator marks them on the court.</p>}
     </section>
   );

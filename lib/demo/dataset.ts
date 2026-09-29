@@ -4,7 +4,7 @@
 
 import demo from "@/data/seed/demo.json";
 import { pointsFor } from "@/lib/basketball";
-import type { EventType, Game, GameEvent, Opponent, RosterPlayer, Season, Side, Team } from "@/lib/types";
+import type { Announcement, EventType, Game, GameEvent, Opponent, RosterPlayer, Season, Side, Team } from "@/lib/types";
 
 export type DemoDataset = {
   season: Season;
@@ -13,6 +13,7 @@ export type DemoDataset = {
   opponents: Opponent[];
   games: Game[];
   events: GameEvent[];
+  announcements: Announcement[];
 };
 
 const HOUR = 3600_000;
@@ -93,5 +94,18 @@ export function materializeDemo(nowMs: number): DemoDataset {
     opponents: demo.opponents,
     games,
     events,
+    announcements: demo.news.map((item, index) => ({
+      id: `demo-news-${index}`,
+      slug: item.slug,
+      title: item.title,
+      category: item.category as Announcement["category"],
+      summary: item.summary,
+      body: item.body,
+      pinned: item.pinned,
+      publishedAt: new Date(nowMs - item.daysAgo * 86_400_000).toISOString(),
+      expiresAt: null,
+      teamId: item.teamId,
+      athleteId: null,
+    })),
   };
 }

@@ -31,6 +31,8 @@ export type LiveHandlers = {
 export interface LiveService {
   load(gameId: string): Promise<LiveSnapshot | null>;
   subscribe(gameId: string, handlers: LiveHandlers): () => void;
+  /** Every game's state changes (for the site-wide live bar). */
+  subscribeGames(onGame: (game: Game) => void): () => void;
   /** Server clock minus this device's clock, in ms. */
   measureServerOffset(): Promise<number>;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Pause, Play, RotateCcw, Undo2 } from "lucide-react";
 import { Court } from "@/components/court";
 import {
@@ -17,7 +17,7 @@ import {
   timeoutsUsed,
 } from "@/lib/basketball";
 import { isDemoMode } from "@/lib/config";
-import { isThreePointSpot } from "@/lib/court";
+import { COURT, isThreePointSpot } from "@/lib/court";
 import { teamLabel } from "@/lib/format";
 import { resetDemo } from "@/lib/live/local";
 import type { LiveSnapshot, NewEvent } from "@/lib/live/service";
@@ -53,6 +53,24 @@ const STAT_BUTTONS: Array<{ type: EventType; label: string; tone?: "bad" }> = [
 ];
 
 type LogRow = { event: GameEvent; pending?: "sending" | "waiting" | "failed"; error?: string };
+
+/** A plausible shot location for auto-play: a 3 beyond the arc, or a 2 inside it. */
+function randomSpot(three: boolean): Spot {
+  for (;;) {
+    const angle = Math.random() * Math.PI;
+    const radius = three ? 6.9 + Math.random() * 1.1 : 0.4 + Math.random() * 5.4;
+    const x = COURT.basket.x + Math.cos(angle) * radius;
+    const y = COURT.basket.y + Math.sin(angle) * radius;
+    if (x > 0.3 && x < COURT.width - 0.3 && y > 0.2 && y < COURT.depth - 0.5) {
+      const spot = { x: Number((x / COURT.width).toFixed(4)), y: Number((y / COURT.depth).toFixed(4)) };
+      if (isThreePointSpot(spot.x, spot.y) === three) return spot;
+    }
+  }
+}
+
+function pick<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
   const live = useLiveGame(initial.game.id, initial);
@@ -258,6 +276,72 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
       : `Finish the game? Final score: Broncos ${teamScore}, ${game.opponent.shortName} ${opponentScore}.`;
     if (window.confirm(message)) void run(() => live.service.setStatus(game.id, "final"), "Game marked final");
   }
+
+  // ------------------------------------------------------------ Auto-play (demo games only)
+
+  const canAutoPlay = game.id.startsWith("demo-");
+  const [autoPlay, setAutoPlay] = useState(false);
+  const autoTick = useRef<() => void>(() => {});
+
+  autoTick.current = () => {
+    if (busy || game.status === "final") return;
+    if (!periodStarted && game.status !== "live") {
+      void run(() => live.service.startPeriod(game.id, Math.max(1, game.currentPeriod)));
+      return;
+    }
+    if (periodEnded) {
+      if (game.currentPeriod < game.periodCount) void run(() => live.service.startPeriod(game.id, game.currentPeriod + 1));
+      else setAutoPlay(false);
+      return;
+    }
+    if (live.clock <= 0) {
+      void run(() => live.service.endPeriod(game.id));
+      return;
+    }
+    if (!game.clockRunning) {
+      void run(() => live.service.clockStart(game.id));
+      return;
+    }
+
+    const players = roster.filter((player) => (lines.get(player.athleteId)?.pf ?? 0) < FOULED_OUT);
+    if (!players.length) return;
+    const roll = Math.random();
+    if (roll < 0.42) {
+      const shooter = pick(players);
+      const three = Math.random() < 0.35;
+      const made = Math.random() < (three ? 0.36 : 0.5);
+      const stamp = { period: game.currentPeriod, clockSecondsLeft: live.clock };
+      log("team", three ? (made ? "fg3_made" : "fg3_miss") : made ? "fg2_made" : "fg2_miss", shooter.athleteId, randomSpot(three), stamp);
+      const teammates = players.filter((player) => player.athleteId !== shooter.athleteId);
+      if (made && teammates.length && Math.random() < 0.55) log("team", "assist", pick(teammates).athleteId, null, stamp);
+      if (!made && Math.random() < 0.3) log("team", "rebound_off", pick(players).athleteId, null, stamp);
+      setFollowUp(null);
+    } else if (roll < 0.72) {
+      const kind = Math.random();
+      if (kind < 0.62) log("opponent", "fg2_made", null);
+      else if (kind < 0.85) log("opponent", "fg3_made", null);
+      else {
+        log("team", "foul", pick(players).athleteId);
+        log("opponent", "ft_made", null);
+        if (Math.random() < 0.7) log("opponent", "ft_made", null);
+      }
+    } else if (roll < 0.86) {
+      log("team", pick<EventType>(["rebound_def", "rebound_def", "steal", "block"]), pick(players).athleteId);
+    } else if (roll < 0.94) {
+      log("opponent", "foul", null);
+      const shooter = pick(players).athleteId;
+      log("team", Math.random() < 0.7 ? "ft_made" : "ft_miss", shooter);
+      log("team", Math.random() < 0.7 ? "ft_made" : "ft_miss", shooter);
+    } else {
+      log("team", "turnover", pick(players).athleteId);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoPlay) return;
+    const timer = window.setInterval(() => autoTick.current(), 3000);
+    return () => window.clearInterval(timer);
+  }, [autoPlay]);
 
   // ------------------------------------------------------------ Keyboard
 
@@ -620,6 +704,11 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
 
       <footer className="op-foot">
         <span>Space: start/stop clock · Ctrl+Z: undo · Esc: clear</span>
+        {canAutoPlay && (
+          <button type="button" onClick={() => setAutoPlay((value) => !value)} aria-pressed={autoPlay}>
+            {autoPlay ? "Stop auto-play" : "Auto-play (demo game)"}
+          </button>
+        )}
         {isDemoMode && (
           <button
             type="button"

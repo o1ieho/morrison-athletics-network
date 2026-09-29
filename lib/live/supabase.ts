@@ -73,6 +73,16 @@ export function createSupabaseLiveService(): LiveService {
       };
     },
 
+    subscribeGames(onGame) {
+      const channel = db
+        .channel(`games-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "games" }, (payload) => onGame(mapGame(payload.new)))
+        .subscribe();
+      return () => {
+        void db.removeChannel(channel);
+      };
+    },
+
     async measureServerOffset() {
       const sentAt = Date.now();
       const { data, error } = await db.rpc("server_time");

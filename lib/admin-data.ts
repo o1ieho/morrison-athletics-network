@@ -31,7 +31,7 @@ export async function getAdminData(): Promise<AdminData> {
         }))
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
       roster: demo.roster,
-      announcements: [],
+      announcements: demo.announcements,
       media: [],
     };
   }

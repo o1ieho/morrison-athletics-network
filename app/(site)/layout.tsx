@@ -1,9 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LiveBar } from "@/components/live-bar";
 import { SiteHeader } from "@/components/site-header";
 import { isDemoMode } from "@/lib/config";
+import { getData } from "@/lib/data";
+import type { GameSummary } from "@/lib/types";
 
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+async function liveGames(): Promise<GameSummary[]> {
+  try {
+    return (await (await getData()).getGames()).filter((game) => game.status === "live");
+  } catch {
+    // The live bar is extra: if games can't load, the page's own content shows the error.
+    return [];
+  }
+}
+
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const live = await liveGames();
   return (
     <>
       {isDemoMode && (
@@ -11,7 +24,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <strong>Demo mode:</strong> sample games and stats, not real results.
         </div>
       )}
-      <SiteHeader />
+      <div className="site-top">
+        <SiteHeader />
+        <LiveBar initial={live} />
+      </div>
       {children}
       <div className="footer-mark" aria-hidden="true">
         <Image src="/brand/morrison-m-cropped.png" alt="" width={170} height={154} />

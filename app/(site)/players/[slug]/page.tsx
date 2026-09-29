@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Sparkline } from "@/components/stats/sparkline";
 import { percentage } from "@/lib/basketball";
 import { getData } from "@/lib/data";
 import { average, formatShortDay, resultLetter, teamLabel } from "@/lib/format";
@@ -77,6 +78,17 @@ export default async function PlayerPage({ params }: Props) {
           ) : (
             <div className="card empty">No stats yet this season.</div>
           )}
+          {(() => {
+            const finals = rows.filter(({ game }) => game!.status === "final").reverse();
+            return finals.length >= 2 ? (
+              <div className="card card-pad" style={{ marginTop: 16 }}>
+                <Sparkline
+                  values={finals.map(({ line }) => line.pts)}
+                  labels={finals.map(({ game }) => `${formatShortDay(game!.startsAt)} ${game!.isHome ? "vs" : "at"} ${game!.opponent.shortName}`)}
+                />
+              </div>
+            ) : null;
+          })()}
         </section>
 
         <section>

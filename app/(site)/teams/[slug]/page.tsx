@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GameRow } from "@/components/games";
+import { LeaderBars } from "@/components/stats/leader-bars";
 import { SORT_KEYS, StatsTable, type SortKey } from "@/components/stats-table";
 import { getData } from "@/lib/data";
-import { teamLabel } from "@/lib/format";
+import { average, teamLabel } from "@/lib/format";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sort?: string }> };
 
@@ -56,6 +57,34 @@ export default async function TeamPage({ params, searchParams }: Props) {
             </div>
           </div>
         </div>
+
+        {stats.length > 0 && (
+          <section className="card card-pad" aria-label="Season leaders">
+            <div className="leaders-grid">
+              {(
+                [
+                  ["pts", "Points", "PPG"],
+                  ["reb", "Rebounds", "RPG"],
+                  ["ast", "Assists", "APG"],
+                ] as const
+              ).map(([key, title, unit]) => (
+                <LeaderBars
+                  key={key}
+                  title={title}
+                  unit={unit}
+                  rows={[...stats]
+                    .filter((line) => line.gp > 0)
+                    .sort((a, b) => b[key] / b.gp - a[key] / a.gp)
+                    .slice(0, 5)
+                    .flatMap((line) => {
+                      const player = roster.find((entry) => entry.athleteId === line.athleteId);
+                      return player ? [{ player, value: line[key] / line.gp, display: average(line[key], line.gp) }] : [];
+                    })}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="split">
           <section id="stats">
