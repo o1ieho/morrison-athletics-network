@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { GameRow } from "@/components/games";
-import { StatsTable } from "@/components/stats-table";
+import { SORT_KEYS, StatsTable, type SortKey } from "@/components/stats-table";
 import { getData } from "@/lib/data";
 import { teamLabel } from "@/lib/format";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sort?: string }> };
 
 async function findTeam(slug: string) {
   const teams = await (await getData()).getTeams();
@@ -19,9 +17,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: team ? teamLabel(team) : "Team" };
 }
 
-export default async function TeamPage({ params }: Props) {
+export default async function TeamPage({ params, searchParams }: Props) {
   const team = await findTeam((await params).slug);
   if (!team) notFound();
+  const { sort: sortParam } = await searchParams;
+  const sort = (SORT_KEYS as string[]).includes(sortParam ?? "") ? (sortParam as SortKey) : "pts";
   const data = await getData();
   const [roster, games, stats, records] = await Promise.all([
     data.getRoster(team.id),
@@ -58,18 +58,15 @@ export default async function TeamPage({ params }: Props) {
         </div>
 
         <div className="split">
-          <section>
+          <section id="stats">
             <div className="section-head">
               <h2>Roster & season stats</h2>
-              <Link href={`/stats?team=${team.slug}`}>
-                Sort stats <ArrowRight size={16} />
-              </Link>
             </div>
             <div className="card">
-              <StatsTable roster={roster} stats={stats} />
+              <StatsTable roster={roster} stats={stats} sort={sort} sortHref={(key) => `/teams/${team.slug}?sort=${key}#stats`} />
             </div>
             <p className="muted small" style={{ marginTop: 8 }}>
-              Per-game averages from final games.
+              Per-game averages from final games. Tap a column to sort.
             </p>
           </section>
           <section>

@@ -1295,3 +1295,86 @@ a.team-card:hover {
 .connection.live::before {
   background: #3ccf7a;
 }
+
+/* ---------------------------------------------------------------- Calendar */
+
+.cal-day-label {
+  margin: 4px 0 10px;
+  font-size: 1.05rem;
+}
+
+.cal-event {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.cal-event:first-child {
+  border-top: 0;
+}
+
+.cal-time {
+  color: var(--green-600);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cal-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cal-body strong {
+  color: var(--ink);
+}
+
+.cal-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.cal-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cal-game {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  margin-top: 4px;
+  color: var(--green-600);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.cal-game:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 640px) {
+  .cal-event {
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+  }
+
+  .cal-game {
+    grid-column: 3;
+    grid-row: 1;
+    margin-top: 0;
+  }
+}

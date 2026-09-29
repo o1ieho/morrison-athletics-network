@@ -194,8 +194,8 @@ function ScoringLeaders({ stats, roster, teams }: { stats: SeasonStatLine[]; ros
     <section>
       <div className="section-head">
         <h2>Scoring leaders</h2>
-        <Link href="/stats">
-          All stats <ArrowRight size={16} />
+        <Link href="/teams">
+          Team stats <ArrowRight size={16} />
         </Link>
       </div>
       <div className="card">

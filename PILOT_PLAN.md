@@ -94,12 +94,12 @@ Status as of 2026-09-29. Everything that doesn't need a live Supabase project is
 - [x] Database views: `player_game_stats`, `player_season_stats`, `team_records`.
 - [x] Player page with season averages and game log.
 - [x] Team records from final games.
-- [x] Sortable stats page per team.
+- [x] Sortable season stats on each team page (the separate Stats page was removed 2026-09-29).
 
 ### Phase 5: UI/UX pass
 - [x] New design system (Broncos green, condensed display type); mobile menu; no clipped nav.
 - [x] Home: score strip, live or next game first, upcoming, results, team records, scoring leaders.
-- [x] Nav trimmed to Home, Schedule, Teams, Stats, News. Other sports and media are hidden.
+- [x] Nav trimmed to Home, Schedule, Teams, News. Other sports and media are hidden.
 - [x] Copy rewritten.
 - [x] Empty states, a 404 page, an error page. *(Loading skeletons: not yet.)*
 - [x] One shared FIBA `Court` component; the old copy-pasted inline SVGs are gone.

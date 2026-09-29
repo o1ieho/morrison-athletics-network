@@ -13,3 +13,10 @@ export const isDemoMode = process.env.NEXT_PUBLIC_SSN_DEMO === "1" || !supabaseU
 export const SCHOOL_NAME = "Morrison Academy Taipei";
 export const TEAM_NAME = "Broncos";
 export const SCHOOL_TIME_ZONE = "Asia/Taipei";
+
+/**
+ * The athletics department's Google Calendar ID (Calendar settings →
+ * "Integrate calendar" → Calendar ID). The calendar must be public. Set
+ * GOOGLE_CALENDAR_ID in Vercel to change it without a code change.
+ */
+export const googleCalendarId = process.env.GOOGLE_CALENDAR_ID ?? "";

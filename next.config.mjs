@@ -9,6 +9,7 @@ const nextConfig = {
       { source: "/operator/live", destination: "/operator", permanent: false },
       { source: "/operator/live/:id", destination: "/operator/:id", permanent: false },
       { source: "/athletes/:slug", destination: "/players/:slug", permanent: false },
+      { source: "/stats", destination: "/teams", permanent: false },
       { source: "/announcements/:path*", destination: "/news/:path*", permanent: false },
     ];
   },

@@ -72,6 +72,21 @@ insert into supabase_migrations.schema_migrations (version, name)
 values ('20260929000000', 'pilot_schema') on conflict do nothing;
 ```
 
+## Google Calendar (schedule page)
+
+The Schedule page shows the athletics Google Calendar as cards. Edits made in Google Calendar (including on a phone) appear on the site within about 5 minutes.
+
+1. In Google Calendar on a computer, open the calendar's **Settings and sharing**.
+2. Under **Access permissions for events**, tick **Make available to public** and choose **See all event details**.
+3. Under **Integrate calendar**, copy the **Calendar ID** (it looks like `abc123@group.calendar.google.com`).
+4. In Vercel, go to **Settings → Environment Variables** and add `GOOGLE_CALENDAR_ID` with that value (Production and Preview). Then redeploy.
+
+Tips for whoever edits the calendar:
+- Put the opponent's name in game titles (e.g. "Varsity Boys vs TAS"). When it matches a game in Admin on the same day, the card links to live scores and the box score.
+- Games still need to be added in **Admin → Games** to be scored live. The calendar is for everyone's schedule (games, practices, buses); Admin is for the games the operator will track.
+
+Until the variable is set, the Schedule page lists the games from Admin instead.
+
 ## Updating rosters
 
 Either use **Admin → Rosters** on the site, or edit `data/seed/roster.json`, run `npm run seed:generate`, and re-run `supabase/seed.sql` (it updates in place).

@@ -2,7 +2,7 @@
 
 Live scores, box scores, schedules and season stats for Morrison Academy Taipei Broncos basketball. A student stat operator logs plays from the sideline, and every phone following the game updates in real time.
 
-- **Public site:** home, schedule, teams, stats, player pages, and game pages (live scoreboard, play-by-play, box score, shot chart).
+- **Public site:** home, schedule (from the athletics Google Calendar), teams with sortable season stats, player pages, and game pages (live scoreboard, play-by-play, box score, shot chart).
 - **Operator console** (`/operator`): fast play entry for one person, offline-safe.
 - **Admin** (`/admin`): games, rosters, opponents, news.
 
