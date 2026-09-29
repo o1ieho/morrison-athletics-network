@@ -17,7 +17,7 @@ Create a project at supabase.com. Ideally it's owned by a school account, with y
 
 Then, in **SQL Editor**, run these files in order:
 
-1. `supabase/migrations/202609290001_pilot_schema.sql` (tables, rules, realtime)
+1. `supabase/migrations/20260929000000_pilot_schema.sql` (tables, rules, realtime)
 2. `supabase/seed.sql` (season, the 4 teams, current rosters)
 3. *(Optional, for testing only)* `supabase/demo-seed.sql` (sample games). Remove it before the season:
    ```sql
@@ -59,7 +59,18 @@ npm run dev
 
 ## 4. Deploy (Vercel)
 
-Import the repo in Vercel and set **Root Directory** to `ssn-platform`. Add the same two environment variables and deploy. Don't set `NEXT_PUBLIC_SSN_DEMO` in production.
+Import the repo in Vercel (the project is at the repo root, so leave Root Directory as-is). Add the same two environment variables and deploy. Don't set `NEXT_PUBLIC_SSN_DEMO` in production.
+
+## Supabase GitHub integration
+
+Migrations in `supabase/migrations/` use the Supabase CLI's naming (`YYYYMMDDHHMMSS_name.sql`). If the integration is set to deploy migrations on push, a migration that was already applied by hand must be recorded first, or it will be re-run and fail:
+
+```sql
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20260929000000', 'pilot_schema') on conflict do nothing;
+```
 
 ## Updating rosters
 

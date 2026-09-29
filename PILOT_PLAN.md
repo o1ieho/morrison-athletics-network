@@ -51,7 +51,7 @@ Status as of 2026-09-29. Everything that doesn't need a live Supabase project is
 ### Phase 0: Foundation
 - [ ] **Oliver:** get a Supabase project (restore, school-owned, or new) and send the URL and publishable key.
 - [x] Fix the build: `npm run build` passes. Also upgraded Next.js to 16.3.6 for security fixes.
-- [x] One clean pilot migration (`supabase/migrations/202609290001_pilot_schema.sql`), tested by `npm run test:db` (28 checks).
+- [x] One clean pilot migration (`supabase/migrations/20260929000000_pilot_schema.sql`), tested by `npm run test:db` (28 checks).
 - [x] Seed: 2026-27 season, the 4 teams and current rosters (`supabase/seed.sql`, generated from `data/seed/roster.json`). Opponents and schedule come in via Admin once known.
 - [x] Silent fallbacks removed. Errors show an error page; demo data only appears in demo mode, with a banner.
 - [x] All dates and times in `Asia/Taipei`.
