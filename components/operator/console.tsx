@@ -28,7 +28,8 @@ import type { EventType, Game, GameEvent, RosterPlayer, Side } from "@/lib/types
 /** A player's athlete id, or "team" for team rebounds / turnovers. */
 type Target = string;
 type Spot = { x: number; y: number };
-type FollowUp = { kind: "assist" | "rebound"; shooterId: string | null } | null;
+/** A suggested next stat, stamped with the shot's period and clock so it lines up in the play-by-play. */
+type FollowUp = { kind: "assist" | "rebound"; shooterId: string | null; period: number; clockSecondsLeft: number } | null;
 
 const FOULED_OUT = 5;
 
@@ -110,15 +111,15 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
   // ------------------------------------------------------------ Logging
 
   const log = useCallback(
-    (side: Side, type: EventType, athleteId: string | null, shot: Spot | null = null) => {
+    (side: Side, type: EventType, athleteId: string | null, shot: Spot | null = null, stamp?: { period: number; clockSecondsLeft: number }) => {
       const isFieldGoal = EVENT_META[type].isFieldGoal;
       const event: NewEvent = {
         id: crypto.randomUUID(),
         side,
         type,
         athleteId,
-        period: game.currentPeriod,
-        clockSecondsLeft: live.clock,
+        period: stamp?.period ?? game.currentPeriod,
+        clockSecondsLeft: stamp?.clockSecondsLeft ?? live.clock,
         shotX: isFieldGoal && shot ? shot.x : null,
         shotY: isFieldGoal && shot ? shot.y : null,
       };
@@ -128,10 +129,11 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
       flash(describeEvent(event, { team: "Broncos", opponent: game.opponent.shortName, player: who }));
 
       // Offer the natural next stat for MAT shots.
+      const shotStamp = { period: event.period, clockSecondsLeft: event.clockSecondsLeft };
       if (side === "team" && isFieldGoal) {
-        setFollowUp({ kind: EVENT_META[type].made ? "assist" : "rebound", shooterId: athleteId });
+        setFollowUp({ kind: EVENT_META[type].made ? "assist" : "rebound", shooterId: athleteId, ...shotStamp });
       } else if (side === "team" && type === "ft_miss") {
-        setFollowUp({ kind: "rebound", shooterId: athleteId });
+        setFollowUp({ kind: "rebound", shooterId: athleteId, ...shotStamp });
       } else {
         setFollowUp(null);
       }
@@ -183,7 +185,7 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
 
   function onFollowUp(pick: Target | null) {
     if (followUp && pick) {
-      log("team", followUp.kind === "assist" ? "assist" : "rebound_off", pick === "team" ? null : pick);
+      log("team", followUp.kind === "assist" ? "assist" : "rebound_off", pick === "team" ? null : pick, null, followUp);
     }
     setFollowUp(null);
   }
@@ -261,8 +263,9 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement;
-      if (target.closest("input, select, textarea")) return;
+      // Don't hijack keys while typing in a field (e.g. correcting the clock).
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, select, textarea")) return;
       if (event.code === "Space") {
         event.preventDefault();
         toggleClock();
