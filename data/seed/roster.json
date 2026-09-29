@@ -1,0 +1,31 @@
+{
+  "season": {
+    "id": "2026-27",
+    "name": "2026-27 Season",
+    "startsOn": "2026-08-01",
+    "endsOn": "2027-06-15"
+  },
+  "teams": [
+    { "id": "bbb-v", "slug": "varsity-boys-basketball", "name": "Varsity Boys Basketball", "gender": "boys", "level": "varsity" },
+    { "id": "gbb-v", "slug": "varsity-girls-basketball", "name": "Varsity Girls Basketball", "gender": "girls", "level": "varsity" },
+    { "id": "bbb-jv", "slug": "jv-boys-basketball", "name": "JV Boys Basketball", "gender": "boys", "level": "jv" },
+    { "id": "gbb-jv", "slug": "jv-girls-basketball", "name": "JV Girls Basketball", "gender": "girls", "level": "jv" }
+  ],
+  "roster": [
+    { "team": "bbb-v", "number": 1, "name": "Ryan J. Lin", "position": "PG", "height": "5'8\"" },
+    { "team": "bbb-v", "number": 2, "name": "Justin Lin", "position": "G", "height": "5'7\"" },
+    { "team": "bbb-v", "number": 3, "name": "Zacharia J. Chow", "position": "SF", "height": "5'10\"" },
+    { "team": "bbb-v", "number": 4, "name": "Kyan Cheng", "position": "SG", "height": "5'9\"" },
+    { "team": "bbb-v", "number": 5, "name": "Daniel Guo", "position": "SG", "height": "5'10\"" },
+    { "team": "bbb-v", "number": 6, "name": "Elijah Liao", "position": "SF", "height": "6'0\"" },
+    { "team": "bbb-v", "number": 7, "name": "Austin Dam", "position": "PG", "height": "6'0\"" },
+    { "team": "bbb-v", "number": 8, "name": "Corison Kang", "position": "PF", "height": "6'0\"" },
+    { "team": "bbb-v", "number": 9, "name": "Salem Chancler", "position": "G", "height": "5'8\"" },
+    { "team": "bbb-v", "number": 12, "name": "Oliver Ho", "position": "SG", "height": "5'10\"" },
+    { "team": "bbb-v", "number": 13, "name": "Caleb Huang", "position": "PF", "height": "5'10\"" },
+    { "team": "bbb-v", "number": 14, "name": "Ethan Flowers", "position": "C", "height": "6'1\"" },
+    { "team": "gbb-v", "number": 10, "name": "Maya Chen", "position": "PG", "height": "5'7\"" },
+    { "team": "gbb-v", "number": 15, "name": "Emma Liu", "position": "C", "height": "6'0\"" },
+    { "team": "gbb-v", "number": 22, "name": "Sophia Wang", "position": "SF", "height": "5'10\"" }
+  ]
+}
