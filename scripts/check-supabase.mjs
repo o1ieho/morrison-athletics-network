@@ -40,16 +40,40 @@ for (const table of ["teams", "athlete_seasons", "opponents", "games"]) {
   await check(`Read ${table}`, async () => {
     const { count, error } = await db.from(table).select("*", { count: "exact", head: true });
     if (error) throw error;
+    if (count === null) throw new Error("table not found (has the migration been run?)");
     return `${count} rows`;
   });
 }
 
-await check("Anonymous writes are blocked", async () => {
+// Security: everything an anonymous visitor (anyone with the public key) might try.
+await check("Anonymous visitors can't add opponents", async () => {
   const { error } = await db.from("opponents").insert({ id: "__check__", name: "x", short_name: "x" });
   if (!error) {
     await db.from("opponents").delete().eq("id", "__check__");
     throw new Error("an anonymous visitor could insert rows. Check the RLS policies!");
   }
+});
+
+await check("Anonymous visitors can't log plays", async () => {
+  const { data: game } = await db.from("games").select("id").limit(1).maybeSingle();
+  if (!game) return "skipped (no games yet)";
+  const { error } = await db.from("game_events").insert({ game_id: game.id, side: "opponent", event_type: "fg3_made" });
+  if (!error) throw new Error("an anonymous visitor logged a play!");
+});
+
+await check("Anonymous visitors can't change scores or the clock", async () => {
+  const { data: game } = await db.from("games").select("id, team_score").limit(1).maybeSingle();
+  if (!game) return "skipped (no games yet)";
+  const { data: changed } = await db.from("games").update({ team_score: 999 }).eq("id", game.id).select();
+  if (changed?.length) throw new Error("an anonymous visitor changed a score!");
+  const { error } = await db.rpc("clock_start", { p_game_id: game.id });
+  if (!error) throw new Error("an anonymous visitor started the clock!");
+});
+
+await check("Staff roles are private", async () => {
+  const { data, error } = await db.from("user_roles").select("*");
+  if (error) return `blocked (${error.code})`;
+  if (data.length) throw new Error("anonymous visitors can see staff accounts!");
 });
 
 process.exit(failed ? 1 : 0);
