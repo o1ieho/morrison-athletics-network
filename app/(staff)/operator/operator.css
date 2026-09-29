@@ -84,7 +84,6 @@
 .op-pill {
   padding: 4px 10px;
   border: 0;
-  border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -106,7 +105,6 @@
 
 .op-banner {
   padding: 10px 14px;
-  border-radius: 10px;
   background: #3a1a17;
   color: #ffb4a9;
 }
@@ -119,7 +117,6 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 14px;
   background: var(--op-panel);
 }
 
@@ -171,7 +168,6 @@
 .op-clock {
   padding: 0 10px;
   border: 0;
-  border-radius: 10px;
   background: transparent;
   color: var(--op-muted);
   font-family: var(--font-display);
@@ -199,7 +195,6 @@
   min-height: 48px;
   padding: 0 10px;
   border: 2px solid var(--op-armed);
-  border-radius: 10px;
   background: var(--op-bg);
   color: var(--op-text);
   font-family: var(--font-display);
@@ -211,7 +206,6 @@
   min-height: 48px;
   padding: 0 12px;
   border: 0;
-  border-radius: 10px;
   background: var(--op-panel-2);
   color: var(--op-text);
   font-weight: 700;
@@ -232,7 +226,6 @@
   min-height: 48px;
   padding: 0 16px;
   border: 1px solid var(--op-line);
-  border-radius: 10px;
   background: var(--op-panel-2);
   color: var(--op-text);
   font-weight: 700;
@@ -278,7 +271,6 @@
   flex-direction: column;
   min-height: 0;
   padding: 10px;
-  border-radius: 14px;
   background: var(--op-panel);
 }
 
@@ -312,7 +304,6 @@
   min-height: 62px;
   padding: 8px;
   border: 2px solid transparent;
-  border-radius: 12px;
   background: var(--op-panel-2);
   color: var(--op-text);
   text-align: left;
@@ -323,7 +314,6 @@
   display: grid;
   place-items: center;
   height: 44px;
-  border-radius: 9px;
   background: #345041;
   font-family: var(--font-display);
   font-size: 1.5rem;
@@ -384,7 +374,6 @@
   gap: 8px;
   min-height: 44px;
   padding: 8px 12px;
-  border-radius: 10px;
   background: var(--op-panel-2);
   color: var(--op-muted);
   font-weight: 600;
@@ -408,7 +397,6 @@
   gap: 8px;
   padding: 10px;
   border: 1px dashed var(--op-accent);
-  border-radius: 10px;
 }
 
 .op-followup > span {
@@ -427,7 +415,6 @@
   min-height: 44px;
   padding: 0 12px;
   border: 0;
-  border-radius: 9px;
   background: #345041;
   color: white;
   font-family: var(--font-display);
@@ -459,7 +446,6 @@
   min-height: 56px;
   padding: 0 8px;
   border: 2px solid transparent;
-  border-radius: 12px;
   background: var(--op-panel-2);
   color: var(--op-text);
   font-weight: 800;
@@ -488,7 +474,8 @@
 
 .op-stat.armed {
   border-color: var(--op-armed);
-  box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.25);
+  outline: 3px solid var(--op-armed);
+  outline-offset: -3px;
 }
 
 .op-court-wrap {
@@ -555,7 +542,6 @@
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border-radius: 8px;
   background: var(--op-panel-2);
   font-size: 0.85rem;
 }
@@ -604,7 +590,6 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
   background: transparent;
   color: var(--op-muted);
 }
@@ -628,7 +613,6 @@
   align-items: center;
   gap: 8px;
   padding: 10px;
-  border-radius: 14px;
   background: var(--op-panel);
 }
 
@@ -672,11 +656,9 @@
   max-width: min(92vw, 560px);
   padding: 12px 18px;
   transform: translateX(-50%);
-  border-radius: 12px;
   background: #eef2ef;
   color: #0e1512;
   font-weight: 700;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .op-toast.error {
@@ -715,7 +697,6 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
   background: #17211c;
 }
 

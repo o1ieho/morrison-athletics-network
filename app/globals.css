@@ -29,10 +29,6 @@
   --warn-bg: #fff4d6;
   --warn-ink: #6b4a00;
 
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow-sm: 0 1px 2px rgba(13, 20, 17, 0.06), 0 1px 1px rgba(13, 20, 17, 0.04);
-  --shadow: 0 8px 24px rgba(13, 20, 17, 0.08);
   --page-max: 1360px;
   --gutter: clamp(16px, 4vw, 32px);
 
@@ -256,7 +252,6 @@ p {
   z-index: 40;
   background: var(--brand);
   color: white;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .site-header .container {
@@ -305,7 +300,6 @@ p {
 
 .nav a {
   padding: 8px 14px;
-  border-radius: 8px;
   color: white;
   font-weight: 500;
   font-size: 1.05rem;
@@ -316,7 +310,9 @@ p {
 }
 
 .nav a[aria-current="page"] {
-  background: rgba(0, 0, 0, 0.18);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
 }
 
 .menu-button {
@@ -326,7 +322,6 @@ p {
   height: 44px;
   margin-left: auto;
   border: 0;
-  border-radius: 10px;
   background: transparent;
   color: white;
   cursor: pointer;
@@ -466,8 +461,6 @@ p {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
 }
 
 .card-pad {
@@ -496,7 +489,6 @@ p {
 
 .notice {
   padding: 14px 16px;
-  border-radius: var(--radius-sm);
   background: var(--green-50);
   border: 1px solid var(--green-100);
   color: var(--green-700);
@@ -519,7 +511,6 @@ p {
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: 10px;
   background: var(--green-600);
   color: white;
   font-weight: 700;
@@ -563,7 +554,6 @@ p {
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  border-radius: 999px;
   background: var(--green-50);
   color: var(--green-700);
   font-size: 0.72rem;
@@ -619,64 +609,6 @@ p {
 
 .result.L {
   color: var(--loss);
-}
-
-/* ---------------------------------------------------------------- Score strip */
-
-.score-strip {
-  background: var(--green-900);
-  color: white;
-}
-
-.score-strip .container {
-  display: flex;
-  gap: 8px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.score-strip .container::-webkit-scrollbar {
-  display: none;
-}
-
-.strip-game {
-  display: grid;
-  gap: 2px;
-  flex: 0 0 auto;
-  min-width: 168px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  font-size: 0.85rem;
-}
-
-.strip-game:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.strip-game .strip-status {
-  color: var(--silver);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.strip-game .strip-status.live {
-  color: #ff8a80;
-}
-
-.strip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-weight: 600;
-}
-
-.strip-row.lost {
-  color: rgba(255, 255, 255, 0.6);
 }
 
 /* ---------------------------------------------------------------- Game rows / cards */
@@ -758,10 +690,8 @@ a.game-row:hover {
 
 .scoreboard {
   overflow: hidden;
-  border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--green-800), var(--green-900));
+  background: var(--brand);
   color: white;
-  box-shadow: var(--shadow);
 }
 
 .scoreboard-top {
@@ -858,7 +788,6 @@ a.game-row:hover {
 
 .bonus {
   padding: 1px 6px;
-  border-radius: 4px;
   background: #f5c542;
   color: var(--ink);
   font-size: 0.65rem;
@@ -869,7 +798,6 @@ a.game-row:hover {
 .sb-mark {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
   background: white;
   padding: 4px;
 }
@@ -887,36 +815,39 @@ a.game-row:hover {
 
 .tabs {
   display: flex;
-  gap: 4px;
+  gap: 0;
   margin: 18px 0 16px;
-  padding: 4px;
-  border-radius: 12px;
-  background: #e8ebe9;
+  border-bottom: 2px solid var(--line);
   overflow-x: auto;
 }
 
 .tabs button,
 .tabs a {
-  flex: 1 0 auto;
-  min-height: 40px;
-  padding: 0 14px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-bottom: -2px;
+  padding: 0 18px;
   border: 0;
-  border-radius: 9px;
+  border-bottom: 3px solid transparent;
   background: transparent;
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
+.tabs button:hover,
+.tabs a:hover {
+  color: var(--ink);
+}
+
 .tabs [aria-selected="true"],
 .tabs [aria-current="page"] {
-  background: var(--surface);
+  border-bottom-color: var(--brand);
   color: var(--ink);
-  box-shadow: var(--shadow-sm);
 }
 
 /* ---------------------------------------------------------------- Tables */
@@ -1048,7 +979,6 @@ a.game-row:hover {
   position: relative;
   width: 100%;
   aspect-ratio: 15 / 14;
-  border-radius: var(--radius-sm);
   background: #f3ece0;
   overflow: hidden;
 }
@@ -1069,7 +999,6 @@ a.game-row:hover {
   height: 12px;
   transform: translate(-50%, -50%);
   border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .shot.made {
@@ -1080,7 +1009,6 @@ a.game-row:hover {
 .shot.missed {
   background: transparent;
   border: 0;
-  box-shadow: none;
 }
 
 .shot.missed::before,
@@ -1092,7 +1020,6 @@ a.game-row:hover {
   width: 12px;
   height: 3px;
   background: var(--loss);
-  border-radius: 2px;
 }
 
 .shot.missed::before {
@@ -1134,8 +1061,7 @@ a.game-row:hover {
   display: grid;
   gap: 2px;
   padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--green-50);
+  background: var(--panel);
 }
 
 .stat-tile strong {
@@ -1174,8 +1100,7 @@ a.game-row:hover {
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
-  background: var(--green-600);
+  background: var(--brand);
   color: white;
   font-family: var(--font-display);
   font-size: 1.25rem;
@@ -1221,47 +1146,6 @@ a.team-card:hover {
   line-height: 1;
 }
 
-/* Hero (home page) */
-
-.hero {
-  background: linear-gradient(120deg, var(--green-800) 0%, var(--green-700) 60%, var(--green-600) 100%);
-  color: white;
-}
-
-.hero .container {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding-top: clamp(24px, 5vw, 44px);
-  padding-bottom: clamp(24px, 5vw, 44px);
-}
-
-.hero h1 {
-  color: white;
-  font-size: clamp(2rem, 6vw, 3.4rem);
-}
-
-.hero p {
-  color: rgba(255, 255, 255, 0.78);
-  max-width: 52ch;
-}
-
-.hero-mark {
-  display: none;
-  flex-shrink: 0;
-  width: 112px;
-  height: 112px;
-  padding: 8px;
-  border-radius: 20px;
-  background: white;
-}
-
-@media (min-width: 640px) {
-  .hero-mark {
-    display: block;
-  }
-}
-
 /* Filters */
 
 .filters {
@@ -1277,7 +1161,6 @@ a.team-card:hover {
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
   background: var(--surface);
   color: var(--text);
   font-size: 0.875rem;
@@ -1314,7 +1197,6 @@ a.team-card:hover {
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
   background: var(--surface);
   font-weight: 400;
 }
@@ -1676,11 +1558,15 @@ a.team-card:hover {
 
 .media-play {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
   display: grid;
   place-items: center;
+  width: 48px;
+  height: 48px;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.35), transparent 60%);
 }
 
 /* Featured game (Live now / Next game) */
@@ -1689,7 +1575,6 @@ a.team-card:hover {
   display: block;
   background: var(--brand);
   color: white;
-  box-shadow: var(--shadow);
 }
 
 .feature-top,
@@ -1754,7 +1639,6 @@ a.team-card:hover {
 .feature-mark.opponent {
   display: grid;
   place-items: center;
-  border-radius: 14px;
   background: rgba(255, 255, 255, 0.12);
   font-family: var(--font-display);
   font-size: clamp(1.8rem, 5vw, 2.6rem);
@@ -1877,7 +1761,6 @@ a.team-card:hover {
   width: 48px;
   height: 48px;
   border: 0;
-  border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   color: white;
   cursor: pointer;

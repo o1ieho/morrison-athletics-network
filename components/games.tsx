@@ -58,48 +58,4 @@ export function GameRow({ game, showTeam = true }: { game: GameSummary; showTeam
   );
 }
 
-/** Compact horizontal ticker of games under the header. */
-export function ScoreStrip({ games }: { games: GameSummary[] }) {
-  if (!games.length) return null;
-  return (
-    <div className="score-strip" aria-label="Scores">
-      <div className="container">
-        {games.map((game) => {
-          const started = game.status === "live" || game.status === "final";
-          const status =
-            game.status === "live" ? "Live" : game.status === "final" ? "Final" : `${formatShortDay(game.startsAt)} · ${formatTime(game.startsAt)}`;
-          const teamLost = game.status === "final" && game.teamScore < game.opponentScore;
-          const opponentLost = game.status === "final" && game.opponentScore < game.teamScore;
-          return (
-            <Link key={game.id} href={`/games/${game.id}`} className="strip-game">
-              <span className={`strip-status ${game.status === "live" ? "live" : ""}`}>
-                {teamLabel(game.team)} · {status}
-              </span>
-              <span className={`strip-row ${teamLost ? "lost" : ""}`}>
-                <span>Broncos</span>
-                <span className="tabular">{started ? game.teamScore : ""}</span>
-              </span>
-              <span className={`strip-row ${opponentLost ? "lost" : ""}`}>
-                <span>{game.opponent.shortName}</span>
-                <span className="tabular">{started ? game.opponentScore : ""}</span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** Live games first, then the latest results, then what's next. */
-export function stripGames(games: GameSummary[], now = Date.now()) {
-  const live = games.filter((game) => game.status === "live");
-  const recent = games
-    .filter((game) => game.status === "final")
-    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
-    .slice(0, 4);
-  const upcoming = games.filter((game) => game.status === "scheduled" && Date.parse(game.startsAt) >= now - 3 * 3600_000).slice(0, 4);
-  return [...live, ...recent, ...upcoming];
-}
-
 export { matchupLabel };
