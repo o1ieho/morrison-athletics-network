@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusBadge } from "@/components/games";
+import { UnsentBadge } from "@/components/operator/unsent-badge";
 import { requireStaff } from "@/lib/auth";
 import { isDemoMode } from "@/lib/config";
 import { getData } from "@/lib/data";
@@ -72,7 +73,10 @@ function GameGroup({ title, games }: { title: string; games: GameSummary[] }) {
               {game.status !== "scheduled" && ` · ${game.teamScore}–${game.opponentScore}`}
             </span>
           </span>
-          <StatusBadge game={game} />
+          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <UnsentBadge gameId={game.id} />
+            <StatusBadge game={game} />
+          </span>
         </Link>
       ))}
     </section>

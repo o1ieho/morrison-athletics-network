@@ -59,9 +59,11 @@ describe("clock", () => {
   test("a running clock counts down from its anchor, corrected for device skew", () => {
     const anchor = Date.UTC(2026, 0, 1, 12, 0, 0);
     const game = { clockRunning: true, clockSecondsLeft: 300, clockAnchorAt: new Date(anchor).toISOString() };
-    assert.equal(clockSecondsLeft(game, anchor + 30_500), 270);
+    assert.equal(clockSecondsLeft(game, anchor + 30_400), 270);
+    // Rounded to the nearest second, so stopping the clock doesn't lose time.
+    assert.equal(clockSecondsLeft(game, anchor + 30_600), 269);
     // Device clock is 10s behind the server.
-    assert.equal(clockSecondsLeft(game, anchor + 20_500, 10_000), 270);
+    assert.equal(clockSecondsLeft(game, anchor + 20_400, 10_000), 270);
     assert.equal(clockSecondsLeft(game, anchor + 900_000), 0);
   });
 
@@ -96,8 +98,14 @@ describe("team fouls and timeouts", () => {
 
   test("overtime continues the last period's count", () => {
     const game = { foulReset: "quarter" as const, periodCount: 4, currentPeriod: 5 };
-    const late = [event("team", "foul", "a", { period: 4 }), event("team", "foul", "a", { period: 5 })];
-    assert.equal(teamFouls(game, late, "team"), 1);
+    const late = [
+      event("team", "foul", "a", { period: 3 }),
+      event("team", "foul", "a", { period: 4 }),
+      event("team", "foul", "a", { period: 5 }),
+    ];
+    // Q4 and OT fouls count together; Q3's don't.
+    assert.equal(teamFouls(game, late, "team"), 2);
+    assert.equal(teamFouls({ ...game, currentPeriod: 6 }, [...late, event("team", "foul", "a", { period: 6 })], "team"), 3);
   });
 
   test("timeouts ignore voided events", () => {

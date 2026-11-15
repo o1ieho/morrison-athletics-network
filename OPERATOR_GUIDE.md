@@ -4,10 +4,11 @@ One page for whoever is running stats. Practise once in demo mode before your fi
 
 ## Before tip-off
 
-1. Charge the laptop or tablet. Landscape works best.
-2. Sign in at **/login**, then open **/operator** and pick the game.
-3. Check the top right says **Connected** and **All saved**.
-4. Keep a paper scoresheet going as a backup for the first few games.
+1. Charge the laptop or iPad. Landscape works best.
+2. On an iPad: **Settings → Display & Brightness → Auto-Lock → Never** for the game, and turn off Low Power Mode. A locked screen pauses saving. (The console also tries to keep the screen on by itself.)
+3. Sign in at **/login**, then open **/operator** and pick the game. Do this **before** tip-off, while the Wi-Fi is working.
+4. Check the top right says **Connected** and **All saved**.
+5. Keep a paper scoresheet going as a backup for the first few games.
 
 ## During the game
 
@@ -31,7 +32,17 @@ Scores come from the plays you log, so to fix a score, fix the play.
 
 ## If the Wi-Fi drops
 
-Keep logging. Plays wait on the device (**"3 sending…"**) and send themselves when the connection comes back, in the right order and with the right game clock. Don't close the tab while plays are waiting; the browser will warn you. If the red **failed** badge appears at the top, tap it to retry.
+Keep logging. Plays wait on the device (**"3 sending…"**) and send themselves when the connection comes back, in the right order and with the right game clock. If the red **failed** badge appears at the top, tap it to retry.
+
+Three rules while a yellow **Offline** bar is showing:
+
+1. **Don't refresh the page and don't close the tab.** The page can't load again without Wi-Fi. Your plays would still be safe on the device, but you couldn't log new ones until the connection is back.
+2. **Stay in this game.** Don't switch apps for long, and don't go back to the game list. Plays only send while the game is open. If you do leave, the game list shows **"3 unsent plays: open to send"** next to the game: open it again.
+3. **Clock and quarter buttons need Wi-Fi.** If they don't respond, keep logging plays and note the time on paper; fix the clock when you're back online. The quarter buttons also wait until every play has finished saving, so the play-by-play stays in order.
+
+## If it says you've been signed out
+
+A red bar says **"You've been signed out"**. Tap **Sign in again**, sign in, and you land back in the game. The plays you logged in the meantime were kept on the device and send by themselves.
 
 ## Player fouls
 

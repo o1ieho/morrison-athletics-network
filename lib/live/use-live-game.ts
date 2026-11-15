@@ -40,15 +40,24 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
   const [serverOffset, setServerOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const lastStatus = useRef<ConnectionStatus>("connecting");
+  /** When each event was last applied on this device (a save, an undo or a realtime change). */
+  const touched = useRef(new Map<string, number>());
 
   const reload = useCallback(async () => {
     try {
+      const startedAt = Date.now();
       const fresh = await live.load(gameId);
       setSnapshot((current) => {
         if (!fresh) return null;
-        // Keep a realtime update that arrived while the load was in flight.
-        if (current && !newer(current.game, fresh.game)) return { ...fresh, game: { ...fresh.game, ...current.game } };
-        return fresh;
+        if (!current) return fresh;
+        // Plays saved or undone while the load was in flight are newer than
+        // what the load returned, so they win. Without this a play could
+        // vanish from the log, or an undo could flip back.
+        const recent = current.events.filter((event) => (touched.current.get(event.id) ?? 0) >= startedAt);
+        const events = recent.reduce(upsertEvent, fresh.events);
+        // Same for a realtime game update that arrived during the load.
+        const game = newer(current.game, fresh.game) ? fresh.game : { ...fresh.game, ...current.game };
+        return { ...fresh, game, events };
       });
       setError(null);
     } catch (reason) {
@@ -63,7 +72,10 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
     const unsubscribe = live.subscribe(gameId, {
       onGame: (game) =>
         setSnapshot((current) => (current && newer(current.game, game) ? { ...current, game: { ...current.game, ...game } } : current)),
-      onEvent: (event) => setSnapshot((current) => (current ? { ...current, events: upsertEvent(current.events, event) } : current)),
+      onEvent: (event) => {
+        touched.current.set(event.id, Date.now());
+        setSnapshot((current) => (current ? { ...current, events: upsertEvent(current.events, event) } : current));
+      },
       onStatus: (next) => {
         // Catch up on anything missed while disconnected.
         if (next === "live" && lastStatus.current === "reconnecting") void reload();
@@ -98,6 +110,7 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
   }, []);
 
   const applyEvent = useCallback((event: GameEvent) => {
+    touched.current.set(event.id, Date.now());
     setSnapshot((current) => (current ? { ...current, events: upsertEvent(current.events, event) } : current));
   }, []);
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { clockSecondsLeft, formatClock, periodLabel } from "@/lib/basketball";
 import { teamLabel } from "@/lib/format";
 import { getLiveService } from "@/lib/live/use-live-game";
@@ -11,43 +12,77 @@ import { useFlashKey } from "@/lib/use-flash";
 /**
  * A score bug under the header on every page while any game is live. It
  * listens to all games, so it appears when the operator starts a game and
- * disappears at the final buzzer without a page reload.
+ * disappears at the final buzzer without a page reload. It also re-reads the
+ * scores when a phone wakes up, so it never sits on an old score.
  */
 export function LiveBar({ initial }: { initial: GameSummary[] }) {
   const [games, setGames] = useState<GameSummary[]>(initial);
   const [now, setNow] = useState(() => Date.now());
 
+  const pathname = usePathname();
+  // A game page already has its own live connection for that game. Opening a
+  // second one there would double the live traffic for every viewer, so on
+  // game pages the bar checks for changes every 20 seconds instead.
+  const onGamePage = pathname.startsWith("/games/");
+  const gamesRef = useRef(games);
+  gamesRef.current = games;
+
   useEffect(() => {
     const service = getLiveService();
-    const unsubscribe = service.subscribeGames((update: Game) => {
-      setGames((current) => {
-        const known = current.find((game) => game.id === update.id);
-        if (update.status !== "live") return known ? current.filter((game) => game.id !== update.id) : current;
-        if (known) return current.map((game) => (game.id === update.id ? { ...game, ...update } : game));
-        // A game just went live: fetch its team and opponent names.
-        void service.load(update.id).then((snapshot) => {
-          if (snapshot?.game.status === "live") {
-            setGames((latest) => (latest.some((game) => game.id === update.id) ? latest : [...latest, snapshot.game]));
-          }
+
+    // Re-reads every game in the bar: catches up after the page was rendered,
+    // after a phone wakes up, and (on game pages) on a timer.
+    const refresh = () => {
+      for (const game of gamesRef.current) {
+        void service
+          .load(game.id)
+          .then((snapshot) => {
+            if (!snapshot) return;
+            setGames((current) =>
+              snapshot.game.status === "live"
+                ? current.map((entry) => (entry.id === game.id ? snapshot.game : entry))
+                : current.filter((entry) => entry.id !== game.id),
+            );
+          })
+          .catch(() => {
+            // Offline or a slow network: keep what's shown and try again next time.
+          });
+      }
+    };
+
+    const unsubscribe = onGamePage
+      ? null
+      : service.subscribeGames((update: Game) => {
+          setGames((current) => {
+            const known = current.find((game) => game.id === update.id);
+            if (update.status !== "live") return known ? current.filter((game) => game.id !== update.id) : current;
+            if (known) return current.map((game) => (game.id === update.id ? { ...game, ...update } : game));
+            // A game just went live: fetch its team and opponent names.
+            void service
+              .load(update.id)
+              .then((snapshot) => {
+                if (snapshot?.game.status === "live") {
+                  setGames((latest) => (latest.some((game) => game.id === update.id) ? latest : [...latest, snapshot.game]));
+                }
+              })
+              .catch(() => {});
+            return current;
+          });
         });
-        return current;
-      });
-    });
-    // Catch up on anything that changed since the page was rendered.
-    for (const game of initial) {
-      void service.load(game.id).then((snapshot) => {
-        if (!snapshot) return;
-        setGames((current) =>
-          snapshot.game.status === "live"
-            ? current.map((entry) => (entry.id === game.id ? snapshot.game : entry))
-            : current.filter((entry) => entry.id !== game.id),
-        );
-      });
-    }
-    return unsubscribe;
-    // Only on mount: later changes arrive through the subscription.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = onGamePage ? window.setInterval(refresh, 20_000) : null;
+
+    return () => {
+      unsubscribe?.();
+      document.removeEventListener("visibilitychange", onVisible);
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [onGamePage]);
 
   const ticking = games.some((game) => game.clockRunning);
   useEffect(() => {

@@ -63,7 +63,9 @@ export function clockSecondsLeft(
   serverOffsetMs = 0,
 ): number {
   if (!game.clockRunning || !game.clockAnchorAt) return game.clockSecondsLeft;
-  const elapsed = Math.floor((nowMs + serverOffsetMs - Date.parse(game.clockAnchorAt)) / 1000);
+  // Rounded to the nearest second, like public.game_clock_now in the database,
+  // so the clock doesn't lose part of a second every time it stops.
+  const elapsed = Math.round((nowMs + serverOffsetMs - Date.parse(game.clockAnchorAt)) / 1000);
   return Math.max(0, game.clockSecondsLeft - Math.max(0, elapsed));
 }
 
@@ -95,14 +97,14 @@ export function periodLengthSeconds(game: Pick<Game, "periodCount" | "periodLeng
 
 /** Periods that share a team-foul count with `period` under the game's reset rule. */
 function foulWindow(game: Pick<Game, "foulReset" | "periodCount">, period: number): (p: number) => boolean {
-  if (period > game.periodCount) {
-    // Overtime continues the fouls of the final period's window.
-    return foulWindow(game, game.periodCount);
-  }
   if (game.foulReset === "half" && game.periodCount === 4) {
+    // Overtime counts with the second half.
     const firstHalf = period <= 2;
     return (p) => (firstHalf ? p <= 2 : p > 2);
   }
+  // Overtime is an extension of the final period: fouls from the final
+  // period and every overtime count together toward the bonus.
+  if (period >= game.periodCount) return (p) => p >= game.periodCount;
   return (p) => p === period;
 }
 

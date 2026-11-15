@@ -109,6 +109,17 @@
   color: #ffb4a9;
 }
 
+.op-banner.warn {
+  background: #3a3115;
+  color: #ffd98a;
+}
+
+.op-banner a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 /* Scoreboard */
 
 .op-board {
@@ -242,7 +253,7 @@
 }
 
 .op-btn.small {
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
   font-size: 0.82rem;
 }
@@ -500,6 +511,14 @@
   cursor: crosshair;
 }
 
+/* Fast taps must never zoom the page on an iPad. */
+.op,
+.op button,
+.op a,
+.op-court-target {
+  touch-action: manipulation;
+}
+
 .op-court .shot {
   pointer-events: none;
 }
@@ -587,8 +606,9 @@
 .op-log-list li button {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  /* 44px: the smallest size a finger hits reliably on an iPad. */
+  width: 44px;
+  height: 44px;
   border: 0;
   background: transparent;
   color: var(--op-muted);

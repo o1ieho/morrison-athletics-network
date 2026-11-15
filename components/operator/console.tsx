@@ -20,6 +20,7 @@ import { isDemoMode } from "@/lib/config";
 import { COURT, isThreePointSpot } from "@/lib/court";
 import { teamLabel } from "@/lib/format";
 import { resetDemo } from "@/lib/live/local";
+import { getBrowserClient } from "@/lib/supabase/browser";
 import type { LiveSnapshot, NewEvent } from "@/lib/live/service";
 import { useEventQueue } from "@/lib/live/use-event-queue";
 import { useLiveGame } from "@/lib/live/use-live-game";
@@ -92,6 +93,13 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
   // Confirmed events plus plays still waiting to send, oldest first.
   const rows: LogRow[] = useMemo(() => {
     const confirmedIds = new Set(live.events.map((event) => event.id));
+    // A removed play that already reached the server is still being undone
+    // there. Show it as undone now so it never counts toward the score.
+    const removing = new Map(queue.items.filter((item) => item.cancel).map((item) => [item.input.id, item.queuedAt]));
+    const confirmed: LogRow[] = live.events.map((event) => {
+      const removedAt = removing.get(event.id);
+      return { event: removedAt && !event.voidedAt ? { ...event, voidedAt: removedAt } : event };
+    });
     const pending: LogRow[] = queue.items
       .filter((item) => !item.cancel && !confirmedIds.has(item.input.id))
       .map((item) => ({
@@ -105,18 +113,18 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
         pending: item.state,
         error: item.error,
       }));
-    return [...live.events.map((event) => ({ event })), ...pending];
+    return [...confirmed, ...pending];
   }, [game.id, live.events, queue.items]);
 
   const allEvents = useMemo(() => rows.map((row) => row.event), [rows]);
   const box = useMemo(() => computeBoxScore(allEvents, roster), [allEvents, roster]);
   const lines = useMemo(() => new Map(box.players.map((row) => [row.player.athleteId, row.line])), [box]);
 
-  // Show the score including plays that haven't reached the server yet.
-  const pendingPoints = (side: Side) =>
-    rows.filter((row) => row.pending && row.event.side === side).reduce((sum, row) => sum + row.event.points, 0);
-  const teamScore = game.scoringMode === "live" ? game.teamScore + pendingPoints("team") : game.teamScore;
-  const opponentScore = game.scoringMode === "live" ? game.opponentScore + pendingPoints("opponent") : game.opponentScore;
+  // In live mode the score is added up from the plays on this screen (saved
+  // and still sending), the same way the server does it. Reading the saved
+  // score instead could show a stale number when live updates are blocked.
+  const teamScore = game.scoringMode === "live" ? box.team.pts : game.teamScore;
+  const opponentScore = game.scoringMode === "live" ? box.opponent.pts : game.opponentScore;
 
   const periodEnded = activeEvents(allEvents).some((event) => event.type === "period_end" && event.period === game.currentPeriod);
   const periodStarted = activeEvents(allEvents).some((event) => event.type === "period_start" && event.period === game.currentPeriod);
@@ -367,6 +375,75 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // ------------------------------------------------------------ Connection, sign-in and screen
+
+  // Offline: the page itself can't be loaded again without Wi-Fi, so the
+  // operator is told to stay put. Plays keep saving to this device.
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  // Signed out mid-game (the session ended or was signed out elsewhere):
+  // saves are refused until the operator signs in again. Queued plays stay
+  // on this device and send after sign-in.
+  const refused = queue.items.some((item) => item.authError);
+  const [signedOut, setSignedOut] = useState(false);
+  useEffect(() => {
+    if (isDemoMode) return;
+    const auth = getBrowserClient().auth;
+    const check = () => void auth.getSession().then(({ data }) => setSignedOut(!data.session));
+    if (refused) check();
+    const { data } = auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") setSignedOut(true);
+      else if (session) setSignedOut(false);
+    });
+    return () => data.subscription.unsubscribe();
+  }, [refused]);
+
+  // Keep the iPad screen on during a game. A locked screen pauses saving.
+  useEffect(() => {
+    const wakeLock = (navigator as Navigator & { wakeLock?: { request(type: "screen"): Promise<{ release(): Promise<void> }> } }).wakeLock;
+    if (!wakeLock) return;
+    let lock: { release(): Promise<void> } | null = null;
+    let stopped = false;
+    const acquire = () => {
+      if (document.visibilityState !== "visible") return;
+      wakeLock
+        .request("screen")
+        .then((next) => {
+          if (stopped) void next.release();
+          else lock = next;
+        })
+        .catch(() => {
+          // Not allowed (e.g. Low Power Mode): the Auto-Lock setting still applies.
+        });
+    };
+    acquire();
+    // The lock is dropped whenever the page is hidden, so take it again on return.
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      stopped = true;
+      document.removeEventListener("visibilitychange", acquire);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
+
+  function leaveGuard(event: React.MouseEvent) {
+    if (!unsent && !offline) return;
+    const message = unsent
+      ? `${unsent} ${unsent === 1 ? "play hasn't" : "plays haven't"} been saved yet. They only send while this game is open. Leave anyway?`
+      : "You're offline, so this page won't load again until Wi-Fi is back. Leave anyway?";
+    if (!window.confirm(message)) event.preventDefault();
+  }
+
   // ------------------------------------------------------------ Render
 
   if (!live.game && live.loaded) {
@@ -376,7 +453,12 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
   const teamFoulCount = teamFouls(game, allEvents, "team");
   const opponentFoulCount = teamFouls(game, allEvents, "opponent");
   const unsent = queue.items.filter((item) => !item.cancel).length;
-  const failed = queue.items.filter((item) => item.state === "failed").length;
+  const failed = queue.items.filter((item) => item.state === "failed" && !item.cancel).length;
+  // Plays still on their way. Quarter buttons wait for these so the
+  // play-by-play stays in order.
+  const inFlight = queue.items.filter((item) => item.state !== "failed").length;
+  const periodBusy = busy || inFlight > 0;
+  const periodWait = inFlight > 0 ? "Waiting for plays to finish saving" : undefined;
   const threeSpot = spot ? isThreePointSpot(spot.x, spot.y) : false;
   const prompt = pendingAction
     ? `Who? ${EVENT_META[pendingAction].label}`
@@ -387,7 +469,7 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
   return (
     <div className="op">
       <header className="op-top">
-        <Link href="/operator" className="op-back">
+        <Link href="/operator" className="op-back" onClick={leaveGuard}>
           <ChevronLeft size={18} /> Games
         </Link>
         <div className="op-title">
@@ -411,7 +493,18 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
         </div>
       </header>
 
-      {live.error && <div className="op-banner error">{live.error}</div>}
+      {signedOut ? (
+        <div className="op-banner error">
+          You&apos;ve been signed out, so plays can&apos;t be saved. They are safe on this device.{" "}
+          <a href={`/login?next=${encodeURIComponent(`/operator/${game.id}`)}`}>Sign in again</a> and they will send.
+        </div>
+      ) : offline ? (
+        <div className="op-banner warn">
+          Offline. Keep logging: plays are saved on this device and send when Wi-Fi is back. Don&apos;t refresh or close this page.
+        </div>
+      ) : (
+        live.error && <div className="op-banner error">{live.error}</div>
+      )}
 
       {/* Scoreboard + clock */}
       <section className="op-board">
@@ -476,14 +569,15 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
                       <button
                         type="button"
                         className="op-btn"
-                        disabled={busy}
+                        disabled={periodBusy}
+                        title={periodWait}
                         onClick={() => run(() => live.service.startPeriod(game.id, nextPeriod), `${periodLabel(nextPeriod, game.periodCount)} started`)}
                       >
                         Start {periodLabel(nextPeriod, game.periodCount)}
                       </button>
                     )}
                     {regulationOver && (
-                      <button type="button" className="op-btn primary" disabled={busy} onClick={finishGame}>
+                      <button type="button" className="op-btn primary" disabled={periodBusy} title={periodWait} onClick={finishGame}>
                         Finish game
                       </button>
                     )}
@@ -492,7 +586,8 @@ export function OperatorConsole({ initial }: { initial: LiveSnapshot }) {
                   <button
                     type="button"
                     className="op-btn"
-                    disabled={busy}
+                    disabled={periodBusy}
+                    title={periodWait}
                     onClick={() => {
                       if (live.clock > 0 && !window.confirm(`End ${periodLabel(game.currentPeriod, game.periodCount)} with ${formatClock(live.clock)} left?`)) return;
                       void run(() => live.service.endPeriod(game.id), `End of ${periodLabel(game.currentPeriod, game.periodCount)}`);

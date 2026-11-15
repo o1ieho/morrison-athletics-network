@@ -12,7 +12,7 @@ const PERMANENT_CODES = new Set(["42501", "PGRST301", "23514", "23503", "22P02",
 
 function fail(error: PostgrestError | null, what: string): never {
   const message = `${what}: ${error?.message ?? "unknown error"}`;
-  if (error && PERMANENT_CODES.has(error.code)) throw new PermanentError(message);
+  if (error && PERMANENT_CODES.has(error.code)) throw new PermanentError(message, error.code);
   throw new Error(message);
 }
 

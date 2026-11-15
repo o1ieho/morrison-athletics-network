@@ -49,4 +49,13 @@ export interface LiveService {
 /** Thrown for failures where retrying won't help (e.g. not signed in). */
 export class PermanentError extends Error {
   name = "PermanentError";
+  /** The database error code, when there is one (e.g. "42501" for not allowed). */
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
 }
+
+/** Codes that mean the operator isn't signed in (or isn't allowed) rather than a bad play. */
+export const AUTH_ERROR_CODES = new Set(["42501", "PGRST301"]);

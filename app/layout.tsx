@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Roboto } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const roboto = Roboto({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-body", display: "swap" });
@@ -23,7 +24,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${roboto.variable} ${anton.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Page-view counts in Vercel → Analytics (no cookies). Turn it on in the Vercel dashboard. */}
+        <Analytics />
+      </body>
     </html>
   );
 }
