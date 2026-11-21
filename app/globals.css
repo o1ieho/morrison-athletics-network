@@ -105,6 +105,11 @@ textarea {
 
 /* Focus rings need 3:1 against the surface they sit on: ink on the light
    pages and grey panels, yellow on the green and ink surfaces. */
+/* Layout rules like ".stack { display: grid }" would otherwise override the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 :focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
@@ -2618,14 +2623,17 @@ a.team-card:hover {
   }
 }
 
-/* Three-column body: court | plays | leaders + stats */
+/* Gamecast tab, like ESPN's: a wide main column (court, recent plays) and a
+   narrow side column (top Broncos, game flow). Stacked on phones and tablets. */
 
 .gc-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
+.gc-main,
 .gc-side {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2633,25 +2641,27 @@ a.team-card:hover {
   align-content: start;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 1000px) {
   .gc-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .gc-side {
-    grid-column: 1 / -1;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
   }
 }
 
-@media (min-width: 1180px) {
-  .gc-grid {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr);
+/* On wide screens the court and the recent plays sit side by side, so the
+   latest plays are visible without scrolling (our half court is tall). */
+@media (min-width: 1200px) {
+  .gc-main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
   }
+}
 
-  .gc-side {
-    grid-column: auto;
-    grid-template-columns: 1fr;
+/* Stacked, the court doesn't need to be wall-to-wall. */
+@media (max-width: 1199px) {
+  .gc-main .gc-court {
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
   }
 }
 
@@ -2725,18 +2735,17 @@ a.team-card:hover {
   padding: 0 16px;
 }
 
-/* The play feed fills its column and scrolls on its own. */
-/* On phones the feed flows with the page (no scroller inside a scroller);
+/* The play-by-play tab flows with the page (no scroller inside a scroller);
    the 30-row limit and "Show all" keep it in check. */
-@media (max-width: 759px) {
-  .gc-plays .gc-feed-wrap {
-    display: block;
-    min-height: 0;
-  }
+.gc-plays .gc-feed-wrap {
+  display: block;
+  flex: none;
+  min-height: 0;
+}
 
-  .gc-plays .gc-feed {
-    overflow: visible;
-  }
+.gc-plays .gc-feed {
+  flex: none;
+  overflow: visible;
 }
 
 /* Two square segmented groups (play type, quarter). They wrap; on phones each gets its own row. */
@@ -3824,4 +3833,147 @@ a.team-card:hover {
 .sk-table-row {
   height: 36px;
   border-bottom: 1px solid var(--line);
+}
+
+/* ---------------------------------------------------------------- Gamecast tabs and panels */
+
+.gc-tabs {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .gc-tabs button {
+    padding: 0 10px;
+    font-size: 0.85rem;
+  }
+}
+
+.gc-stats-tab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 1000px) {
+  .gc-stats-tab {
+    grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* "Full play-by-play →" style links at the foot of a panel. */
+.gc-more {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--brand);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gc-more:hover {
+  background: var(--panel);
+}
+
+/* Recent plays: bold headline, time, then the description; score on the right. */
+.gc-recent-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.gc-recent-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px 10px 13px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+}
+
+.gc-recent-play:last-child {
+  border-bottom: 0;
+}
+
+.gc-recent-play.team {
+  border-left-color: var(--brand);
+}
+
+.gc-recent-main {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gc-recent-main strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.gc-recent-time {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-recent-text {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.gc-recent-play.opponent .gc-recent-text,
+.gc-recent-play.opponent strong {
+  color: var(--muted);
+}
+
+.gc-recent-score {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.gc-recent-score b {
+  color: var(--ink);
+}
+
+/* Top Broncos: a short, full-width table in the side column. */
+.gc-top {
+  font-size: 0.88rem;
+}
+
+.gc-top th,
+.gc-top td {
+  padding: 8px 6px;
+}
+
+.gc-top th:first-child,
+.gc-top td:first-child {
+  padding-left: 16px;
+}
+
+.gc-top th:last-child,
+.gc-top td:last-child {
+  padding-right: 16px;
+}
+
+.gc-top tbody th {
+  font-weight: 700;
+  text-align: left;
+}
+
+.gc-top .foul-trouble {
+  color: var(--live);
+  font-weight: 700;
+}
+
+/* Game flow in the side column: the strip without its numbers. */
+.lead-strip.compact .flow-legend {
+  font-size: 0.75rem;
 }

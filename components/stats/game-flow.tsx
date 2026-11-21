@@ -159,6 +159,7 @@ export function LeadStrip({
   nowT,
   runs,
   leading,
+  compact = false,
 }: {
   flow: GameFlow;
   game: Rules;
@@ -169,6 +170,8 @@ export function LeadStrip({
   runs: Array<{ id: string; startT: number; endT: number }>;
   /** Seconds each side has been ahead. */
   leading: { team: number; opponent: number };
+  /** Side-panel version: a "Game flow" title and no numbers underneath. */
+  compact?: boolean;
 }) {
   const limit = marginLimit(flow);
   const rescaled = useFlashKey(limit);
@@ -192,9 +195,9 @@ export function LeadStrip({
   const tick = (t: number) => `${(x(t) / SW) * 100}%`;
 
   return (
-    <section className="card lead-strip" aria-label="Lead tracker">
+    <section className={`card lead-strip ${compact ? "compact" : ""}`} aria-label={compact ? "Game flow" : "Lead tracker"}>
       <div className="lead-strip-head">
-        <h2>Lead tracker</h2>
+        <h2>{compact ? "Game flow" : "Lead tracker"}</h2>
         <span className="flow-legend" aria-hidden="true">
           <span>
             <i className="swatch team" /> Broncos ahead
@@ -256,38 +259,40 @@ export function LeadStrip({
             ),
         )}
       </div>
-      <dl className="lead-strip-stats">
-        <div>
-          <dt>Lead changes</dt>
-          <dd>{flow.leadChanges}</dd>
-        </div>
-        <div>
-          <dt>Times tied</dt>
-          <dd>{flow.ties}</dd>
-        </div>
-        <div>
-          <dt>Biggest lead</dt>
-          <dd>
-            <span>
-              <small>Broncos</small> {flow.largestLead.team}
-            </span>
-            <span>
-              <small>{opponentName}</small> {flow.largestLead.opponent}
-            </span>
-          </dd>
-        </div>
-        <div>
-          <dt>Time leading</dt>
-          <dd>
-            <span>
-              <small>Broncos</small> {formatClock(leading.team)}
-            </span>
-            <span>
-              <small>{opponentName}</small> {formatClock(leading.opponent)}
-            </span>
-          </dd>
-        </div>
-      </dl>
+      {!compact && (
+        <dl className="lead-strip-stats">
+          <div>
+            <dt>Lead changes</dt>
+            <dd>{flow.leadChanges}</dd>
+          </div>
+          <div>
+            <dt>Times tied</dt>
+            <dd>{flow.ties}</dd>
+          </div>
+          <div>
+            <dt>Biggest lead</dt>
+            <dd>
+              <span>
+                <small>Broncos</small> {flow.largestLead.team}
+              </span>
+              <span>
+                <small>{opponentName}</small> {flow.largestLead.opponent}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Time leading</dt>
+            <dd>
+              <span>
+                <small>Broncos</small> {formatClock(leading.team)}
+              </span>
+              <span>
+                <small>{opponentName}</small> {formatClock(leading.opponent)}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      )}
     </section>
   );
 }

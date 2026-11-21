@@ -10,10 +10,8 @@ import { GameRecap, OPEN_PLAY_EVENT } from "@/components/game-recap";
 import { LiveAnnouncer } from "@/components/live-announcer";
 import { useReportLiveGame } from "@/components/live-games";
 import { PreGame, type GamePreview } from "@/components/pregame";
-import { RunStrip } from "@/components/run-strip";
 import { ScoreRoll } from "@/components/score-roll";
 import { GameFlowChart, LeadStrip } from "@/components/stats/game-flow";
-import { LeaderBars } from "@/components/stats/leader-bars";
 import { ZoneChart, ZoneLegend } from "@/components/stats/zone-chart";
 import { TableScroll } from "@/components/table-scroll";
 import {
@@ -34,7 +32,6 @@ import { formatDateTime, matchupLabel, teamLabel } from "@/lib/format";
 import {
   annotatePlays,
   biggestRuns,
-  currentRun,
   elapsedSeconds,
   gameFlow,
   lineScore,
@@ -42,7 +39,6 @@ import {
   timeLeading,
   zoneStats,
   type LineScore,
-  type Run,
 } from "@/lib/game-analysis";
 import type { ConnectionStatus, LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
@@ -57,15 +53,26 @@ import { useHydrated } from "@/lib/use-hydrated";
 const SHADED_RUN = 8;
 /** The play-by-play shows this many rows until "Show all" is tapped. */
 const FEED_LIMIT = 30;
+/** How many plays the Gamecast tab shows under the court. */
+const RECENT_PLAYS = 6;
+
+type GameTab = "gamecast" | "box" | "plays" | "stats";
+const GAME_TABS: Array<[GameTab, string]> = [
+  ["gamecast", "Gamecast"],
+  ["box", "Box Score"],
+  ["plays", "Play-by-Play"],
+  ["stats", "Team Stats"],
+];
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
- * The game page, laid out like a TV "gamecast": a compact scoreboard with the
- * line score and any run in progress, the lead tracker strip, then the court,
- * the play-by-play feed and the leaders side by side, so a live game fits on
- * one screen. Box score and the full lead tracker sit below. A final leads
- * with a recap; an upcoming game shows season leaders, form and the roster.
+ * The game page, laid out like ESPN's: a compact scoreboard with the line
+ * score, then tabs. "Gamecast" shows just enough to follow the game (the
+ * court, the latest plays, the top Broncos and a small game-flow chart); the
+ * full play-by-play, box score and team stats each have their own tab. A
+ * final leads with a recap; an upcoming game shows season leaders, form and
+ * the roster.
  */
 export function GameCenter({ initial, preview }: { initial: LiveSnapshot; preview?: GamePreview }) {
   const live = useLiveGame(initial.game.id, initial);
@@ -80,7 +87,6 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   const box = useMemo(() => computeBoxScore(events, roster), [events, roster]);
   const line = useMemo(() => lineScore(game, events), [game, events]);
   const flow = useMemo(() => gameFlow(game, events), [game, events]);
-  const run = useMemo(() => currentRun(events), [events]);
   const runs = useMemo(() => scoringRuns(events), [events]);
   const biggest = useMemo(() => {
     const best = biggestRuns(events);
@@ -95,7 +101,26 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   const started = isLive || game.status === "final" || activeEvents(events).length > 0;
   // Changes once if the game tips off while the page is open, to crossfade the layout.
   const tipped = useFlashKey(started);
-  const [tab, setTab] = useState<"box" | "flow">("box");
+  const [tab, setTab] = useState<GameTab>("gamecast");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  // A recap link or #play-… URL opens the play-by-play tab (the panel itself scrolls to the play).
+  useEffect(() => {
+    const toPlays = () => setTab("plays");
+    const fromHash = () => {
+      if (window.location.hash.startsWith("#play-")) toPlays();
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    window.addEventListener(OPEN_PLAY_EVENT, toPlays);
+    return () => {
+      window.removeEventListener("hashchange", fromHash);
+      window.removeEventListener(OPEN_PLAY_EVENT, toPlays);
+    };
+  }, []);
+  const openPlays = () => {
+    setTab("plays");
+    tabsRef.current?.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  };
 
   // Game time for the lead tracker, in 15-second steps so the chart doesn't redraw every tick.
   // It depends on the current time, so the server and the first browser render stop at the last score.
@@ -117,39 +142,46 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   return (
     <div className="stack">
       <LiveAnnouncer game={game} events={events} clock={live.clock} />
-      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={started ? line : null} run={isLive ? run : null} />
+      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={started ? line : null} />
 
       <div key={tipped} className={`stack ${tipped ? "gc-swap" : ""}`}>
         {started ? (
           <>
-            {recap && <GameRecap recap={recap} />}
-            <LeadStrip flow={flow} game={game} opponentName={names.opponent} nowT={nowT} runs={shaded} leading={timeLeading(flow, nowT ?? flow.duration)} />
-
-            <div className="gc-grid">
-              <ShotPanel game={game} events={events} roster={roster} />
-              <PlaysPanel game={game} events={events} roster={roster} />
-              <aside className="gc-side">
-                <LeadersPanel box={box} />
-                <TeamStatsPanel game={game} box={box} events={events} line={line} />
-              </aside>
-            </div>
-
             {/* Toggle buttons rather than ARIA tabs: no arrow-key tab pattern is promised. */}
-            <div className="tabs" role="group" aria-label="Game details">
-              <button type="button" aria-pressed={tab === "box"} onClick={() => setTab("box")}>
-                Box score
-              </button>
-              <button type="button" aria-pressed={tab === "flow"} onClick={() => setTab("flow")}>
-                Lead tracker
-              </button>
+            <div className="tabs gc-tabs" role="group" aria-label="Game sections" ref={tabsRef}>
+              {GAME_TABS.map(([id, label]) => (
+                <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>
+                  {label}
+                </button>
+              ))}
             </div>
-            {tab === "box" ? (
+
+            {/* Every tab stays mounted (hidden when not chosen) so filters and scroll positions survive switching. */}
+            <div hidden={tab !== "gamecast"} className="stack">
+              {recap && <GameRecap recap={recap} />}
+              <div className="gc-grid">
+                <div className="gc-main">
+                  <ShotPanel game={game} events={events} roster={roster} />
+                  <RecentPlays game={game} events={events} roster={roster} onShowAll={openPlays} />
+                </div>
+                <aside className="gc-side">
+                  <TopPerformers box={box} onShowBox={() => setTab("box")} />
+                  <LeadStrip compact flow={flow} game={game} opponentName={names.opponent} nowT={nowT} runs={shaded} leading={timeLeading(flow, nowT ?? flow.duration)} />
+                </aside>
+              </div>
+            </div>
+            <div hidden={tab !== "box"}>
               <BoxScoreTable game={game} box={box} />
-            ) : (
+            </div>
+            <div hidden={tab !== "plays"}>
+              <PlaysPanel game={game} events={events} roster={roster} />
+            </div>
+            <div hidden={tab !== "stats"} className="gc-stats-tab">
+              <TeamStatsPanel game={game} box={box} events={events} line={line} />
               <section className="card card-pad" aria-label="Lead tracker">
                 <GameFlowChart flow={flow} game={game} opponentName={names.opponent} nowT={nowT} biggestRun={biggest} />
               </section>
-            )}
+            </div>
           </>
         ) : (
           <>
@@ -175,22 +207,18 @@ function Scoreboard({
   clock,
   status,
   line,
-  run,
 }: {
   game: GameSummary;
   events: GameEvent[];
   clock: number;
   status: ConnectionStatus;
   line: LineScore | null;
-  run: Run | null;
 }) {
   const isLive = game.status === "live";
   const hasScore = isLive || game.status === "final";
   const teamFoulCount = teamFouls(game, events, "team");
   const opponentFoulCount = teamFouls(game, events, "opponent");
   const foulLabel = `${game.foulReset === "half" && game.periodCount === 4 ? (game.currentPeriod <= 2 ? "1st half" : "2nd half") : periodLabel(game.currentPeriod, game.periodCount)} fouls`;
-  const names = { team: "Broncos", opponent: game.opponent.shortName };
-
   const team = {
     name: "Broncos",
     score: game.teamScore,
@@ -218,13 +246,11 @@ function Scoreboard({
       <h1 className="visually-hidden">
         {matchupLabel(game)}, {teamLabel(game.team)}
       </h1>
-      <div className={`gc-board-meta ${run ? "has-run" : ""}`}>
+      <div className="gc-board-meta">
         <span className="gc-meta-text">
           {teamLabel(game.team)} · {formatDateTime(game.startsAt)}
           {game.location ? ` · ${game.location}` : ""}
         </span>
-        {/* On phones a run takes the place of the date line, so the board doesn't change height. */}
-        <RunStrip run={run} names={names} periodCount={game.periodCount} className="in-meta" />
         {isLive && <ConnectionNote status={status} />}
       </div>
 
@@ -274,8 +300,6 @@ function Scoreboard({
             reverse
           />
         </div>
-
-        <RunStrip run={run} names={names} periodCount={game.periodCount} className="in-body" />
 
         {line && (
           <div className="gc-line">
@@ -490,11 +514,8 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
 
 // ---------------------------------------------------------------- Play-by-play panel
 
-type FeedKind = "all" | "scoring" | "key";
-
 function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
   const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
-  const [kind, setKind] = useState<FeedKind>("all");
   const [period, setPeriod] = useState<number | "all">("all");
   const [showAll, setShowAll] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
@@ -514,8 +535,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
   const periods = [...new Set(rows.map((event) => event.period))].sort((a, b) => a - b);
   const filtered = rows.filter(
     (event) =>
-      (period === "all" || event.period === period) &&
-      (kind === "all" || event.type === "period_end" || (kind === "scoring" ? event.points > 0 : notes.get(event.id)?.key)),
+      period === "all" || event.period === period,
   );
   const shown = showAll ? filtered : filtered.slice(0, FEED_LIMIT);
 
@@ -526,7 +546,6 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
     const open = (id: string) => {
       const event = rowsRef.current.find((entry) => entry.id === id);
       if (!event) return;
-      setKind("all");
       setPeriod(event.period);
       setShowAll(true);
       setTarget(event.id);
@@ -570,11 +589,6 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
         <h2>Play-by-play</h2>
       </div>
       <div className="gc-feed-filters">
-        <div className="segments" role="group" aria-label="Show plays">
-          {(["all", "scoring", "key"] as const).map((option) =>
-            filterButton(kind === option, option === "all" ? "All" : option === "scoring" ? "Scoring" : "Key", () => setKind(option)),
-          )}
-        </div>
         <div className="segments" role="group" aria-label="Quarter">
           {(["all", ...periods] as const).map((option) =>
             filterButton(period === option, option === "all" ? "All Qs" : periodLabel(option, game.periodCount), () => setPeriod(option)),
@@ -650,7 +664,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
           })}
           {!shown.length && (
             <li className="gc-feed-empty">
-              {rows.length ? (kind === "key" ? "No key plays yet." : "No scoring plays yet.") : "Plays appear here as soon as the game tips off."}
+              {rows.length ? "No plays in this quarter yet." : "Plays appear here as soon as the game tips off."}
             </li>
           )}
           {!showAll && filtered.length > FEED_LIMIT && (
@@ -668,22 +682,128 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
 
 // ---------------------------------------------------------------- Side column
 
-function LeadersPanel({ box }: { box: BoxScore }) {
-  const top = (key: "pts" | "reb" | "ast") =>
-    [...box.players]
-      .sort((a, b) => b.line[key] - a.line[key])
-      .slice(0, 3)
-      .map(({ player, line }) => ({ player, value: line[key] }));
+/** ESPN-style headline for a play: "+3 Points", "Rebound", "Foul". */
+function playHeadline(event: GameEvent) {
+  const meta = EVENT_META[event.type];
+  if (event.points > 0) return `+${event.points} ${event.points === 1 ? "Point" : "Points"}`;
+  if (meta.isShot) return "Missed shot";
+  return meta.label;
+}
+
+/** The latest few plays under the court, newest first, with a way into the full feed. */
+function RecentPlays({
+  game,
+  events,
+  roster,
+  onShowAll,
+}: {
+  game: GameSummary;
+  events: GameEvent[];
+  roster: RosterPlayer[];
+  onShowAll: () => void;
+}) {
+  const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
+  const isFresh = useArrivals(events, FRESH_ROW_MS);
+  const notes = useMemo(() => annotatePlays(events), [events]);
+  const plays = activeEvents(events)
+    .filter((event) => event.side !== "game")
+    .reverse()
+    .slice(0, RECENT_PLAYS);
+  const names = { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount };
+
   return (
-    <section className="card gc-panel gc-leaders" aria-label="Game leaders">
+    <section className="card gc-panel gc-recent" aria-label="Recent plays">
       <div className="gc-panel-head">
-        <h2>Leaders</h2>
+        <h2>Recent plays</h2>
       </div>
-      <div className="gc-leaders-list">
-        <LeaderBars title="Points" rows={top("pts")} unit="PTS" />
-        <LeaderBars title="Rebounds" rows={top("reb")} unit="REB" />
-        <LeaderBars title="Assists" rows={top("ast")} unit="AST" />
+      <ol className="gc-recent-list">
+        {plays.map((event) => {
+          const note = notes.get(event.id);
+          return (
+            <li key={event.id} className={`gc-recent-play ${event.side} ${isFresh(event.id) ? "pbp-new" : ""}`}>
+              <span className="gc-recent-main">
+                <strong>{playHeadline(event)}</strong>
+                <span className="gc-recent-time">
+                  {periodLabel(event.period, game.periodCount)} · {formatClock(event.clockSecondsLeft)}
+                </span>
+                <span className="gc-recent-text">
+                  {describeEvent(event, { ...names, player: event.athleteId ? players.get(event.athleteId) : undefined })}
+                  {note?.run && <span className="tag run">{note.run.points}-0 run</span>}
+                </span>
+              </span>
+              {note && (
+                <span className="gc-recent-score tabular">
+                  {event.side === "team" ? <b>{note.team}</b> : note.team}–{event.side === "opponent" ? <b>{note.opponent}</b> : note.opponent}
+                </span>
+              )}
+            </li>
+          );
+        })}
+        {!plays.length && <li className="gc-feed-empty">Plays appear here as soon as the game tips off.</li>}
+      </ol>
+      <button type="button" className="gc-more" onClick={onShowAll}>
+        Full play-by-play →
+      </button>
+    </section>
+  );
+}
+
+/** ESPN's "On the court" box, for the Broncos: the top scorers with their key numbers. */
+function TopPerformers({ box, onShowBox }: { box: BoxScore; onShowBox: () => void }) {
+  const top = box.players
+    .filter(({ line }) => Object.values(line).some((value) => value > 0))
+    .sort((a, b) => b.line.pts - a.line.pts || b.line.reb - a.line.reb)
+    .slice(0, 5);
+  return (
+    <section className="card gc-panel" aria-label="Top Broncos">
+      <div className="gc-panel-head">
+        <h2>Top Broncos</h2>
       </div>
+      <table className="table gc-top">
+        <thead>
+          <tr>
+            <th scope="col">Player</th>
+            <th scope="col" title="Points">PTS</th>
+            <th scope="col" title="Field goals made-attempted">FG</th>
+            <th scope="col" title="Rebounds">REB</th>
+            <th scope="col" title="Assists">AST</th>
+            <th scope="col" title="Personal fouls">PF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {top.map(({ player, line }) => (
+            <tr key={player.athleteId}>
+              <th scope="row">
+                <Link href={`/players/${player.slug}`} className="player-cell" title={player.name}>
+                  <span className="jersey">{player.number ?? ""}</span>
+                  {shortName(player.name)}
+                </Link>
+              </th>
+              <td>
+                <FlashValue value={line.pts} />
+              </td>
+              <td>{fraction(line.fgm, line.fga)}</td>
+              <td>
+                <FlashValue value={line.reb} />
+              </td>
+              <td>
+                <FlashValue value={line.ast} />
+              </td>
+              <td className={line.pf >= 4 ? "foul-trouble" : undefined}>{line.pf}</td>
+            </tr>
+          ))}
+          {!top.length && (
+            <tr>
+              <td colSpan={6} className="muted">
+                No stats yet.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <button type="button" className="gc-more" onClick={onShowBox}>
+        Full box score →
+      </button>
     </section>
   );
 }
