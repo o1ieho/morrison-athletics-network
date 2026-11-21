@@ -6,6 +6,8 @@ import { requireStaff } from "@/lib/auth";
 import { isDemoMode } from "@/lib/config";
 import { getData } from "@/lib/data";
 import { dateKey, formatDateTime, teamLabel } from "@/lib/format";
+import { canOperateGame, OPERATOR_WINDOW_HOURS } from "@/lib/operator-window";
+import type { StaffUser } from "@/lib/auth";
 import type { GameSummary } from "@/lib/types";
 import "./operator.css";
 
@@ -44,10 +46,16 @@ export default async function OperatorHome() {
             )}
           </div>
         </div>
-        <GameGroup title="Live now" games={live} />
-        <GameGroup title="Today" games={todays} />
-        <GameGroup title="Upcoming" games={upcoming} />
-        <GameGroup title="Recent (for corrections)" games={recent} />
+        {!user.isAdmin && (
+          <p style={{ color: "#97a39c", margin: 0 }}>
+            You can run a game from {OPERATOR_WINDOW_HOURS} hours before tip-off until {OPERATOR_WINDOW_HOURS} hours after. For anything
+            outside that, ask an admin.
+          </p>
+        )}
+        <GameGroup title="Live now" games={live} user={user} />
+        <GameGroup title="Today" games={todays} user={user} />
+        <GameGroup title="Upcoming" games={upcoming} user={user} />
+        <GameGroup title={user.isAdmin ? "Recent (for corrections)" : "Recent"} games={recent} user={user} />
         {!games.length && <p style={{ color: "#97a39c" }}>No games this season yet. An admin can add them under Admin → Games.</p>}
         <Link href="/" style={{ color: "#97a39c", fontSize: "0.85rem" }}>
           ← Back to the public site
@@ -57,13 +65,15 @@ export default async function OperatorHome() {
   );
 }
 
-function GameGroup({ title, games }: { title: string; games: GameSummary[] }) {
+function GameGroup({ title, games, user }: { title: string; games: GameSummary[]; user: StaffUser }) {
   if (!games.length) return null;
+  // Rendered per request, so "now" is the time the list was opened.
+  const now = Date.now();
   return (
     <section className="op-picker-list">
       <p className="eyebrow">{title}</p>
-      {games.map((game) => (
-        <Link key={game.id} href={`/operator/${game.id}`} className="op-picker-game">
+      {games.map((game) => {
+        const body = (
           <span style={{ display: "grid", gap: 2 }}>
             <strong>
               Broncos {game.isHome ? "vs" : "at"} {game.opponent.shortName}
@@ -73,12 +83,26 @@ function GameGroup({ title, games }: { title: string; games: GameSummary[] }) {
               {game.status !== "scheduled" && ` · ${game.teamScore}–${game.opponentScore}`}
             </span>
           </span>
-          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <UnsentBadge gameId={game.id} />
-            <StatusBadge game={game} />
-          </span>
-        </Link>
-      ))}
+        );
+        if (!canOperateGame(game, user, now)) {
+          const early = Date.parse(game.startsAt) > now;
+          return (
+            <div key={game.id} className="op-picker-game locked">
+              {body}
+              <span>{early ? "Opens on game day" : "Locked · ask an admin"}</span>
+            </div>
+          );
+        }
+        return (
+          <Link key={game.id} href={`/operator/${game.id}`} className="op-picker-game">
+            {body}
+            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <UnsentBadge gameId={game.id} />
+              <StatusBadge game={game} />
+            </span>
+          </Link>
+        );
+      })}
     </section>
   );
 }

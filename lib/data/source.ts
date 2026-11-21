@@ -2,6 +2,7 @@ import type {
   Announcement,
   GameEvent,
   GameSummary,
+  LeagueStanding,
   MediaItem,
   RosterPlayer,
   Season,
@@ -25,6 +26,8 @@ export interface DataSource {
   getSeasonStats(teamId?: string): Promise<SeasonStatLine[]>;
   getPlayerGameLog(athleteId: string): Promise<Array<{ gameId: string; line: StatLine }>>;
   getTeamRecords(): Promise<TeamRecord[]>;
+  /** Other schools' league records for a team this season (the Broncos' row comes from getTeamRecords). */
+  getStandings(teamId: string): Promise<LeagueStanding[]>;
   getAnnouncements(): Promise<Announcement[]>;
   /** Newest first. */
   getMedia(limit?: number): Promise<MediaItem[]>;

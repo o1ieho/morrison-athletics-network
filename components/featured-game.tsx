@@ -52,7 +52,7 @@ export function FeaturedGame({ initial, form = [] }: { initial: LiveSnapshot; fo
           <span>
             {teamLabel(game.team)} Basketball · {game.isHome ? "Home" : "Away"}
           </span>
-          <span>{isLive ? <ConnectionNote status={live.status} /> : game.location}</span>
+          <span>{isLive ? <ConnectionNote status={live.status} syncedAt={live.syncedAt} /> : game.location}</span>
         </div>
 
         <div className="feature-body">

@@ -26,6 +26,13 @@ What changed, in plain words: plays can no longer vanish when a clock button is 
 
 Still not done (accepted risks): the console can't be opened without Wi-Fi (so open it before tip-off and don't refresh), and nobody has tested 50+ phones following at once.
 
+## Step 0b: Two more database changes (Nov 21, 5 min)
+
+In Supabase → SQL Editor, paste and run each file's contents, in this order. Both are safe to run more than once.
+
+1. `supabase/migrations/20261121000000_operator_game_day.sql`: stat operators can only change a game on its game day (12 hours before tip-off to 12 hours after). Admins can still change anything. Until this runs, any stat operator can edit any game.
+2. `supabase/migrations/20261121000100_league_standings.sql`: adds the league standings table behind **Admin → Standings**. Until this runs, team pages simply show no standings.
+
 ## Step 1: Clear the sample season (5 min, do first)
 
 There's no "clear all" button in Admin. In the Supabase dashboard, open **SQL Editor** and run:

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { CalendarPlus } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "@/components/countdown";
 import { ConnectionNote } from "@/components/connection-note";
 import { Court, CourtLegend } from "@/components/court";
@@ -48,6 +49,7 @@ import { sortArrivals } from "@/lib/catch-up";
 import { useCatchUp, isCatchingUp } from "@/lib/use-catch-up";
 import { useFlashKey } from "@/lib/use-flash";
 import { useHydrated } from "@/lib/use-hydrated";
+import { GAME_TABS, parseGameTab, type GameTab } from "@/lib/game-tabs";
 
 /** Runs at least this big are shaded on the lead tracker. */
 const SHADED_RUN = 8;
@@ -56,15 +58,18 @@ const FEED_LIMIT = 30;
 /** How many plays the Gamecast tab shows under the court. */
 const RECENT_PLAYS = 6;
 
-type GameTab = "gamecast" | "box" | "plays" | "stats";
-const GAME_TABS: Array<[GameTab, string]> = [
-  ["gamecast", "Gamecast"],
-  ["box", "Box Score"],
-  ["plays", "Play-by-Play"],
-  ["stats", "Team Stats"],
-];
+const tabFromLocation = () => parseGameTab(new URLSearchParams(window.location.search).get("tab"), window.location.hash);
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Bottom edge of the sticky header and live bar, in viewport pixels. */
+const headerBottom = () => Math.max(0, document.querySelector(".site-top")?.getBoundingClientRect().bottom ?? 0);
+
+/** Scrolls so `element` sits just under the sticky header (scrollIntoView would tuck it beneath). */
+function scrollUnderHeader(element: HTMLElement) {
+  const top = element.getBoundingClientRect().top + window.scrollY - headerBottom() - 8;
+  window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion() ? "auto" : "smooth" });
+}
 
 /**
  * The game page, laid out like ESPN's: a compact scoreboard with the line
@@ -74,7 +79,18 @@ const prefersReducedMotion = () => typeof window !== "undefined" && window.match
  * final leads with a recap; an upcoming game shows season leaders, form and
  * the roster.
  */
-export function GameCenter({ initial, preview }: { initial: LiveSnapshot; preview?: GamePreview }) {
+export function GameCenter({
+  initial,
+  preview,
+  calendar,
+  initialTab = "gamecast",
+}: {
+  initial: LiveSnapshot;
+  preview?: GamePreview;
+  /** "Add to calendar" links, for a game that hasn't started. */
+  calendar?: { ics: string; google: string };
+  initialTab?: GameTab;
+}) {
   const live = useLiveGame(initial.game.id, initial);
   useCatchUp(live.status);
   const game = live.game ?? initial.game;
@@ -101,26 +117,43 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   const started = isLive || game.status === "final" || activeEvents(events).length > 0;
   // Changes once if the game tips off while the page is open, to crossfade the layout.
   const tipped = useFlashKey(started);
-  const [tab, setTab] = useState<GameTab>("gamecast");
+  // The tab lives in the URL (?tab=box) so a refresh, a shared link or Back keeps it.
+  const [tab, setTab] = useState<GameTab>(initialTab);
   const tabsRef = useRef<HTMLDivElement>(null);
-  // A recap link or #play-… URL opens the play-by-play tab (the panel itself scrolls to the play).
+  /** Set by the "Full …" links: after the switch, bring the tab bar into view and focus the new tab. */
+  const jumpToTabs = useRef(false);
+  const selectTab = useCallback((next: GameTab, jump = false) => {
+    setTab(next);
+    jumpToTabs.current = jump;
+    const url = new URL(window.location.href);
+    if (next === "gamecast") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    if (next !== "plays") url.hash = "";
+    if (url.href !== window.location.href) window.history.pushState(window.history.state, "", url);
+  }, []);
   useEffect(() => {
-    const toPlays = () => setTab("plays");
-    const fromHash = () => {
-      if (window.location.hash.startsWith("#play-")) toPlays();
-    };
-    fromHash();
-    window.addEventListener("hashchange", fromHash);
+    if (!jumpToTabs.current) return;
+    jumpToTabs.current = false;
+    const bar = tabsRef.current;
+    if (!bar) return;
+    // The button that was pressed is now hidden; without this, focus would fall back to the page.
+    bar.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true });
+    scrollUnderHeader(bar);
+  }, [tab]);
+  // Back/Forward between tabs, a #play-… link, or a recap link (the panel itself scrolls to the play).
+  useEffect(() => {
+    const fromLocation = () => setTab(tabFromLocation());
+    const toPlays = () => selectTab("plays");
+    fromLocation();
+    window.addEventListener("popstate", fromLocation);
+    window.addEventListener("hashchange", fromLocation);
     window.addEventListener(OPEN_PLAY_EVENT, toPlays);
     return () => {
-      window.removeEventListener("hashchange", fromHash);
+      window.removeEventListener("popstate", fromLocation);
+      window.removeEventListener("hashchange", fromLocation);
       window.removeEventListener(OPEN_PLAY_EVENT, toPlays);
     };
-  }, []);
-  const openPlays = () => {
-    setTab("plays");
-    tabsRef.current?.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
-  };
+  }, [selectTab]);
 
   // Game time for the lead tracker, in 15-second steps so the chart doesn't redraw every tick.
   // It depends on the current time, so the server and the first browser render stop at the last score.
@@ -142,7 +175,7 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   return (
     <div className="stack">
       <LiveAnnouncer game={game} events={events} clock={live.clock} />
-      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={started ? line : null} />
+      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} syncedAt={live.syncedAt} line={started ? line : null} />
 
       <div key={tipped} className={`stack ${tipped ? "gc-swap" : ""}`}>
         {started ? (
@@ -150,7 +183,7 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
             {/* Toggle buttons rather than ARIA tabs: no arrow-key tab pattern is promised. */}
             <div className="tabs gc-tabs" role="group" aria-label="Game sections" ref={tabsRef}>
               {GAME_TABS.map(([id, label]) => (
-                <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>
+                <button key={id} type="button" aria-pressed={tab === id} onClick={() => selectTab(id)}>
                   {label}
                 </button>
               ))}
@@ -162,10 +195,10 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
               <div className="gc-grid">
                 <div className="gc-main">
                   <ShotPanel game={game} events={events} roster={roster} />
-                  <RecentPlays game={game} events={events} roster={roster} onShowAll={openPlays} />
+                  <RecentPlays game={game} events={events} roster={roster} onShowAll={() => selectTab("plays", true)} />
                 </div>
                 <aside className="gc-side">
-                  <TopPerformers box={box} onShowBox={() => setTab("box")} />
+                  <TopPerformers box={box} onShowBox={() => selectTab("box", true)} />
                   <LeadStrip compact flow={flow} game={game} opponentName={names.opponent} nowT={nowT} runs={shaded} leading={timeLeading(flow, nowT ?? flow.duration)} />
                 </aside>
               </div>
@@ -185,6 +218,16 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
           </>
         ) : (
           <>
+            {calendar && game.status === "scheduled" && (
+              <div className="filters" style={{ margin: 0 }}>
+                <a className="chip" href={calendar.ics}>
+                  <CalendarPlus size={16} style={{ marginRight: 6 }} aria-hidden="true" /> Add to calendar
+                </a>
+                <a className="chip" href={calendar.google} target="_blank" rel="noreferrer">
+                  Google Calendar
+                </a>
+              </div>
+            )}
             {preview && <PreGame game={game} roster={roster} preview={preview} />}
             <section>
               <div className="section-head">
@@ -206,12 +249,14 @@ function Scoreboard({
   events,
   clock,
   status,
+  syncedAt,
   line,
 }: {
   game: GameSummary;
   events: GameEvent[];
   clock: number;
   status: ConnectionStatus;
+  syncedAt: number | null;
   line: LineScore | null;
 }) {
   const isLive = game.status === "live";
@@ -251,7 +296,7 @@ function Scoreboard({
           {teamLabel(game.team)} · {formatDateTime(game.startsAt)}
           {game.location ? ` · ${game.location}` : ""}
         </span>
-        {isLive && <ConnectionNote status={status} />}
+        {isLive && <ConnectionNote status={status} syncedAt={syncedAt} />}
       </div>
 
       <div className="gc-board-body">
@@ -568,13 +613,49 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
     if (target) document.getElementById(`play-${target}`)?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }, [target, jumps]);
 
-  // Scrolled down the feed: new plays don't push what you're reading; a button offers them instead.
-  const count = useRef(rows.length);
+  // Scrolled down into the feed: new plays don't push what you're reading (the
+  // row at the top of the screen stays put, which Safari won't do on its own);
+  // a button offers them instead. The feed flows with the page, so this works
+  // from the window's scroll position.
+  const readingFeed = useCallback(() => {
+    const list = feed.current;
+    return Boolean(list?.offsetParent) && list!.getBoundingClientRect().top < headerBottom() - 40;
+  }, []);
+  const anchor = useRef<{ id: string; top: number } | null>(null);
+  const measureAnchor = useCallback(() => {
+    const list = feed.current;
+    anchor.current = null;
+    if (!list?.offsetParent) return;
+    const header = headerBottom();
+    const row = [...list.children].find((child) => child.id && child.getBoundingClientRect().bottom > header);
+    if (row) anchor.current = { id: row.id, top: row.getBoundingClientRect().top };
+  }, []);
   useEffect(() => {
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        measureAnchor();
+        if (!readingFeed()) setUnseen(0);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [measureAnchor, readingFeed]);
+  const count = useRef(rows.length);
+  useLayoutEffect(() => {
     const added = rows.length - count.current;
     count.current = rows.length;
-    if (added > 0 && (feed.current?.scrollTop ?? 0) > 40) setUnseen((current) => current + added);
-  }, [rows.length]);
+    if (added > 0 && readingFeed()) {
+      const kept = anchor.current && document.getElementById(anchor.current.id);
+      if (kept && anchor.current) window.scrollBy(0, kept.getBoundingClientRect().top - anchor.current.top);
+      setUnseen((current) => current + added);
+    }
+    measureAnchor();
+  }, [rows.length, readingFeed, measureAnchor]);
 
   const names = { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount };
   const filterButton = (active: boolean, label: string, onClick: () => void) => (
@@ -596,25 +677,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
         </div>
       </div>
       <div className="gc-feed-wrap">
-        {unseen > 0 && (
-          <button
-            type="button"
-            className="feed-new"
-            onClick={() => {
-              feed.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
-              setUnseen(0);
-            }}
-          >
-            {unseen} new {unseen === 1 ? "play" : "plays"} ↑
-          </button>
-        )}
-        <ol
-          className="gc-feed"
-          ref={feed}
-          onScroll={(event) => {
-            if (unseen && event.currentTarget.scrollTop <= 40) setUnseen(0);
-          }}
-        >
+        <ol className="gc-feed" ref={feed}>
           {shown.map((event) => {
             const note = notes.get(event.id);
             const fresh = isFresh(event.id);
@@ -675,6 +738,20 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
             </li>
           )}
         </ol>
+        {/* Sticks to the bottom of the screen while you're reading further down. */}
+        {unseen > 0 && (
+          <button
+            type="button"
+            className="feed-new"
+            onClick={(event) => {
+              setUnseen(0);
+              const panel = event.currentTarget.closest("section");
+              if (panel) scrollUnderHeader(panel);
+            }}
+          >
+            {unseen} new {unseen === 1 ? "play" : "plays"} ↑
+          </button>
+        )}
       </div>
     </section>
   );
@@ -686,7 +763,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
 function playHeadline(event: GameEvent) {
   const meta = EVENT_META[event.type];
   if (event.points > 0) return `+${event.points} ${event.points === 1 ? "Point" : "Points"}`;
-  if (meta.isShot) return "Missed shot";
+  if (meta.isShot) return event.type === "ft_miss" ? "Missed free throw" : "Missed shot";
   return meta.label;
 }
 

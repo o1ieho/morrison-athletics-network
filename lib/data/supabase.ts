@@ -98,6 +98,24 @@ export function createSupabaseSource(): DataSource {
       return data.map((row) => ({ teamId: row.team_id, wins: row.wins, losses: row.losses, ties: row.ties }));
     },
 
+    async getStandings(teamId) {
+      const season = await source.getSeason();
+      const { data, error } = await db
+        .from("league_standings")
+        .select("team_id, wins, losses, opponent:opponents(*)")
+        .eq("season_id", season.id)
+        .eq("team_id", teamId);
+      // Until the standings migration has run the table doesn't exist; the team page just goes without standings.
+      if (error?.code === "42P01" || error?.code === "PGRST205") return [];
+      if (error) throw new DataError("standings", error);
+      return data.map((row) => ({
+        teamId: row.team_id,
+        wins: row.wins,
+        losses: row.losses,
+        opponent: mapOpponent(row.opponent as unknown as Record<string, unknown>),
+      }));
+    },
+
     async getAnnouncements() {
       const { data, error } = await db
         .from("announcements")

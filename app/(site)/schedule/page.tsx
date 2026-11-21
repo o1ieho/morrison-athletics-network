@@ -6,6 +6,7 @@ import { GameRow, StatusBadge } from "@/components/games";
 import { googleCalendarAddUrl, googleCalendarSubscribeUrl, startMs, type CalendarEvent } from "@/lib/calendar";
 import { getData } from "@/lib/data";
 import { getSchedule } from "@/lib/data/calendar";
+import { siteOrigin } from "@/lib/site-origin";
 import { dateKey, formatDay, formatTime } from "@/lib/format";
 import type { GameSummary } from "@/lib/types";
 
@@ -38,7 +39,14 @@ function timeLabel(event: CalendarEvent) {
 }
 
 export default async function SchedulePage() {
-  const [schedule, data] = await Promise.all([getSchedule(), getData()]);
+  const [schedule, data, origin] = await Promise.all([getSchedule(), getData(), siteOrigin()]);
+  // With the athletics Google Calendar connected, subscribe to that (it has
+  // every event); until then, to our own feed of games (app/calendar.ics).
+  const feed = `${origin}/calendar.ics`.replace(/^https?:/, "webcal:");
+  const calendarLinks =
+    schedule.status === "not-configured"
+      ? { google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feed)}`, subscribe: feed }
+      : { google: googleCalendarAddUrl(schedule.calendarId), subscribe: googleCalendarSubscribeUrl(schedule.calendarId) };
   const games = await data.getGames();
   const results = games
     .filter((game) => game.status === "final")
@@ -53,16 +61,14 @@ export default async function SchedulePage() {
         <div className="page-head" style={{ marginBottom: 0 }}>
           <p className="eyebrow">Broncos athletics</p>
           <h1>Schedule</h1>
-          {schedule.status !== "not-configured" && (
-            <div className="filters" style={{ marginTop: 8, marginBottom: 0 }}>
-              <a className="chip" href={googleCalendarAddUrl(schedule.calendarId)} target="_blank" rel="noreferrer">
-                <CalendarPlus size={16} style={{ marginRight: 6 }} /> Add to Google Calendar
-              </a>
-              <a className="chip" href={googleCalendarSubscribeUrl(schedule.calendarId)}>
-                Subscribe on iPhone / Outlook
-              </a>
-            </div>
-          )}
+          <div className="filters" style={{ marginTop: 8, marginBottom: 0 }}>
+            <a className="chip" href={calendarLinks.google} target="_blank" rel="noreferrer">
+              <CalendarPlus size={16} style={{ marginRight: 6 }} /> Add to Google Calendar
+            </a>
+            <a className="chip" href={calendarLinks.subscribe}>
+              Subscribe on iPhone / Outlook
+            </a>
+          </div>
         </div>
 
         {schedule.status === "ok" ? (

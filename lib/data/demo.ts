@@ -77,6 +77,15 @@ export function createDemoSource(): DataSource {
         };
       });
     },
+    async getStandings(teamId) {
+      // A sample league table for the demo: every demo opponent, with a made-up record.
+      return dataset.opponents.map((opponent, index) => ({
+        teamId,
+        opponent,
+        wins: (index * 3 + 2) % 6,
+        losses: (index * 2 + 1) % 5,
+      }));
+    },
     async getAnnouncements() {
       return [...dataset.announcements].sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
     },

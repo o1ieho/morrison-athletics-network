@@ -45,6 +45,14 @@ export type Opponent = {
   shortName: string;
 };
 
+/** Another school's league record for one of our teams (entered by an admin). */
+export type LeagueStanding = {
+  teamId: string;
+  opponent: Opponent;
+  wins: number;
+  losses: number;
+};
+
 export type RosterPlayer = {
   athleteId: string;
   slug: string;

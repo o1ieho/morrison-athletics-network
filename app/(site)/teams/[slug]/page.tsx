@@ -6,6 +6,7 @@ import { SORT_KEYS, StatsTable, type SortKey } from "@/components/stats-table";
 import { getData } from "@/lib/data";
 import { average, teamLabel } from "@/lib/format";
 import { recapHeadline } from "@/lib/recap";
+import { formatPct, rankStandings } from "@/lib/standings";
 
 /** How many recent finals get a recap headline in the schedule. */
 const RECAP_LIMIT = 3;
@@ -28,13 +29,21 @@ export default async function TeamPage({ params, searchParams }: Props) {
   const { sort: sortParam } = await searchParams;
   const sort = (SORT_KEYS as string[]).includes(sortParam ?? "") ? (sortParam as SortKey) : "pts";
   const data = await getData();
-  const [roster, games, stats, records] = await Promise.all([
+  const [roster, games, stats, records, others] = await Promise.all([
     data.getRoster(team.id),
     data.getGames({ teamId: team.id }),
     data.getSeasonStats(team.id),
     data.getTeamRecords(),
+    // Standings are extra: if they can't load, the rest of the page still shows.
+    data.getStandings(team.id).catch(() => []),
   ]);
   const record = records.find((entry) => entry.teamId === team.id);
+  const standings = others.length
+    ? rankStandings([
+        { id: "broncos", name: "Morrison Academy Taipei", wins: record?.wins ?? 0, losses: record?.losses ?? 0, broncos: true },
+        ...others.map((row) => ({ id: row.opponent.id, name: row.opponent.name, wins: row.wins, losses: row.losses })),
+      ])
+    : [];
   const finals = games.filter((game) => game.status === "final");
   // One-line recap headlines, for the most recent results only: each needs
   // that game's play-by-play, so the number of reads per view stays small.
@@ -74,6 +83,41 @@ export default async function TeamPage({ params, searchParams }: Props) {
             </div>
           </div>
         </div>
+
+        {standings.length > 0 && (
+          <section aria-labelledby="standings-title">
+            <div className="section-head">
+              <h2 id="standings-title">{team.conference} standings</h2>
+            </div>
+            <div className="card">
+              <table className="table standings">
+                <thead>
+                  <tr>
+                    <th scope="col" title="Rank">#</th>
+                    <th scope="col">School</th>
+                    <th scope="col" title="Wins">W</th>
+                    <th scope="col" title="Losses">L</th>
+                    <th scope="col" title="Win percentage">PCT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standings.map((row) => (
+                    <tr key={row.id} className={row.broncos ? "is-us" : undefined} aria-current={row.broncos ? "true" : undefined}>
+                      <td>{row.rank}</td>
+                      <th scope="row">{row.broncos ? "Broncos" : row.name}</th>
+                      <td>{row.wins}</td>
+                      <td>{row.losses}</td>
+                      <td>{formatPct(row.pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Other schools&apos; records are updated by the athletics office; the Broncos&apos; record comes from our final scores.
+            </p>
+          </section>
+        )}
 
         {stats.length > 0 && (
           <section className="card card-pad" aria-label="Season leaders">

@@ -143,6 +143,53 @@ export async function saveOpponent(_: ActionResult, form: FormData): Promise<Act
   });
 }
 
+// ---------------------------------------------------------------- Standings
+
+const record = z.union([z.literal(""), z.coerce.number().int().min(0, "wins and losses can't be negative").max(200)]);
+
+/**
+ * Saves one team's league table. The form has a W and an L box per opponent
+ * (w:<opponent id>, l:<opponent id>); a school with both boxes empty isn't in
+ * the league table and its row is removed.
+ */
+export async function saveStandings(_: ActionResult, form: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const teamId = z.string().min(1, "choose a team").parse(form.get("team_id"));
+    const db = await adminClient();
+    const { data: season } = await db.from("seasons").select("id").eq("is_active", true).single();
+    if (!season) throw new Error("No active season.");
+
+    const upserts: Array<{ season_id: string; team_id: string; opponent_id: string; wins: number; losses: number; updated_at: string }> = [];
+    const removals: string[] = [];
+    for (const [key, value] of form.entries()) {
+      if (!key.startsWith("w:")) continue;
+      const opponentId = key.slice(2);
+      const wins = record.safeParse(value);
+      const losses = record.safeParse(form.get(`l:${opponentId}`) ?? "");
+      if (!wins.success || !losses.success) throw new Error(`Check the record for ${opponentId}: whole numbers from 0 to 200.`);
+      if (wins.data === "" && losses.data === "") removals.push(opponentId);
+      else
+        upserts.push({
+          season_id: season.id,
+          team_id: teamId,
+          opponent_id: opponentId,
+          wins: wins.data === "" ? 0 : wins.data,
+          losses: losses.data === "" ? 0 : losses.data,
+          updated_at: new Date().toISOString(),
+        });
+    }
+    if (upserts.length) {
+      const { error } = await db.from("league_standings").upsert(upserts);
+      if (error) fail(error, "Saving the standings");
+    }
+    if (removals.length) {
+      const { error } = await db.from("league_standings").delete().eq("season_id", season.id).eq("team_id", teamId).in("opponent_id", removals);
+      if (error) fail(error, "Saving the standings");
+    }
+    return `Standings saved (${upserts.length} ${upserts.length === 1 ? "school" : "schools"})`;
+  });
+}
+
 // ---------------------------------------------------------------- Roster
 
 const playerSchema = z.object({

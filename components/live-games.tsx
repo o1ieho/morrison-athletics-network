@@ -106,12 +106,16 @@ export function LiveGamesProvider({ initial, children }: { initial: GameSummary[
       if (document.visibilityState === "visible") refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
-    const timer = onGamePage ? window.setInterval(refresh, 20_000) : null;
+    // On other pages the realtime connection keeps the bar current; the slower
+    // timer is a backup for venue Wi-Fi that blocks it.
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, onGamePage ? 20_000 : 30_000);
 
     return () => {
       unsubscribe?.();
       document.removeEventListener("visibilitychange", onVisible);
-      if (timer !== null) window.clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, [onGamePage]);
 

@@ -103,13 +103,13 @@ textarea {
   color: inherit;
 }
 
-/* Focus rings need 3:1 against the surface they sit on: ink on the light
-   pages and grey panels, yellow on the green and ink surfaces. */
 /* Layout rules like ".stack { display: grid }" would otherwise override the hidden attribute. */
 [hidden] {
   display: none !important;
 }
 
+/* Focus rings need 3:1 against the surface they sit on: ink on the light
+   pages and grey panels, yellow on the green and ink surfaces. */
 :focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
@@ -2746,6 +2746,8 @@ a.team-card:hover {
 .gc-plays .gc-feed {
   flex: none;
   overflow: visible;
+  /* The panel keeps your place itself when plays arrive (Safari has no scroll anchoring). */
+  overflow-anchor: none;
 }
 
 /* Two square segmented groups (play type, quarter). They wrap; on phones each gets its own row. */
@@ -2812,13 +2814,14 @@ a.team-card:hover {
 }
 
 /* Scrolled down the feed when plays arrive: offer them instead of pushing the list. */
+/* Pinned to the bottom of the screen while you read further down the feed. */
 .feed-new {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: sticky;
+  bottom: 12px;
   z-index: 2;
-  height: 36px;
+  display: block;
+  width: 100%;
+  height: 40px;
   border: 0;
   background: var(--ink);
   color: white;
@@ -2829,13 +2832,14 @@ a.team-card:hover {
 
 @media (prefers-reduced-motion: no-preference) {
   .feed-new {
-    animation: slide-down var(--dur-quick) var(--ease-enter);
+    animation: slide-up var(--dur-quick) var(--ease-enter);
   }
 }
 
-@keyframes slide-down {
+@keyframes slide-up {
   from {
-    transform: translateY(-100%);
+    opacity: 0;
+    transform: translateY(100%);
   }
 }
 
@@ -2944,26 +2948,7 @@ a.team-card:hover {
   text-align: center;
 }
 
-/* Leaders and team stats */
-
-.gc-leaders-list {
-  display: grid;
-  gap: 16px;
-  padding: 0 16px 16px;
-}
-
-.gc-leaders .leader-bars h3 {
-  margin-bottom: 6px;
-  font-size: 1rem;
-}
-
-.gc-leaders .leader-bars ol {
-  gap: 6px;
-}
-
-.gc-leaders .leader-bar-value {
-  font-size: 1.15rem;
-}
+/* Team stats */
 
 .gc-stats {
   display: grid;
@@ -3208,33 +3193,7 @@ a.team-card:hover {
   }
 }
 
-/* Phones: the run takes the date line's place in the meta row (no height change).
-   Wider: it sits under the matchup, above the line score. */
-.run-strip.in-meta {
-  display: none;
-  flex: 1 1 auto;
-  margin: -6px 0;
-}
-
-@media (max-width: 560px) {
-  .run-strip.in-meta {
-    display: flex;
-  }
-
-  .run-strip.in-body {
-    display: none;
-  }
-
-  .gc-board-meta.has-run .gc-meta-text {
-    display: none;
-  }
-}
-
 @media (min-width: 1000px) {
-  .gc-board-body > .run-strip {
-    grid-column: 1;
-  }
-
   .gc-board-body > .gc-line {
     grid-column: 2;
     grid-row: 1 / span 2;
@@ -3976,4 +3935,38 @@ a.team-card:hover {
 /* Game flow in the side column: the strip without its numbers. */
 .lead-strip.compact .flow-legend {
   font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- League standings */
+
+.standings th,
+.standings td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.standings th:nth-child(2),
+.standings td:nth-child(2),
+.standings tbody th {
+  width: 100%;
+  text-align: left;
+}
+
+.standings th:first-child,
+.standings td:first-child {
+  position: static;
+  width: 2.5em;
+  border-right: 0;
+  color: var(--muted);
+  text-align: left;
+}
+
+.standings tr.is-us th,
+.standings tr.is-us td {
+  background: var(--panel);
+  font-weight: 700;
+}
+
+.standings tr.is-us td:first-child {
+  border-left: 3px solid var(--brand);
 }

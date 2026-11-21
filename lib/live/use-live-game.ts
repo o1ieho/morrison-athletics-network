@@ -10,6 +10,11 @@ import { createSupabaseLiveService } from "./supabase";
 
 let service: LiveService | null = null;
 
+/** While the live connection is down (e.g. venue Wi-Fi blocks it), re-read the game this often. */
+export const POLL_MS = 10_000;
+/** While connected to a live game, re-read it this often anyway, in case the connection died silently. */
+export const HEARTBEAT_MS = 60_000;
+
 export function getLiveService(): LiveService {
   service ??= isDemoMode ? createLocalLiveService() : createSupabaseLiveService();
   return service;
@@ -30,6 +35,8 @@ function upsertEvent(events: GameEvent[], event: GameEvent) {
 /**
  * Keeps one game's state in sync: loads it, applies realtime changes, reloads
  * after a reconnect or when a phone wakes up, and ticks the clock locally.
+ * If the realtime connection is down or blocked, it falls back to re-reading
+ * the game every 10 seconds, so a live game never freezes.
  */
 export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
   const live = getLiveService();
@@ -38,6 +45,8 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(Boolean(initial));
   const [serverOffset, setServerOffset] = useState(0);
+  /** When the last full load succeeded (for "last update 2m ago"). */
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const lastStatus = useRef<ConnectionStatus>("connecting");
   /** When each event was last applied on this device (a save, an undo or a realtime change). */
@@ -60,6 +69,7 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
         return { ...fresh, game, events };
       });
       setError(null);
+      setSyncedAt(Date.now());
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not load the game");
     } finally {
@@ -96,6 +106,20 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
     };
   }, [gameId, live, reload]);
 
+  // Polling fallback. Only for games that can still change (live, or about to
+  // tip off), and only while the page is on screen.
+  const gameStatus = snapshot?.game.status;
+  const canChange = gameStatus === "live" || gameStatus === "scheduled";
+  useEffect(() => {
+    if (!canChange) return;
+    const every = status === "live" ? (gameStatus === "live" ? HEARTBEAT_MS : null) : POLL_MS;
+    if (every === null) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void reload();
+    }, every);
+    return () => window.clearInterval(timer);
+  }, [canChange, gameStatus, status, reload]);
+
   const running = snapshot?.game.clockRunning ?? false;
   useEffect(() => {
     if (!running) return;
@@ -127,6 +151,7 @@ export function useLiveGame(gameId: string, initial?: LiveSnapshot | null) {
     clock,
     serverOffset,
     status,
+    syncedAt,
     error,
     loaded,
     reload,

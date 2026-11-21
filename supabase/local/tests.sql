@@ -15,6 +15,11 @@ insert into public.user_roles (user_id, role) values
 
 insert into public.games (id, season_id, team_id, opponent_id, starts_at)
 values ('t-game', '2026-27', 'bbb-v', 'demo-tigers', now());
+-- Outside the stat operator's game-day window (12 hours either side of tip-off).
+insert into public.games (id, season_id, team_id, opponent_id, starts_at, status) values
+  ('t-old', '2026-27', 'bbb-v', 'demo-tigers', now() - interval '3 days', 'final'),
+  ('t-next', '2026-27', 'bbb-v', 'demo-tigers', now() + interval '2 days', 'scheduled');
+insert into public.game_events (game_id, side, athlete_id, event_type) values ('t-old', 'team', 'austin-dam', 'fg2_made');
 
 create function pg_temp.act_as(who text) returns void language plpgsql as $$
 begin
@@ -80,7 +85,25 @@ begin
   delete from public.games where id = 't-game';
   get diagnostics changed = row_count;
   perform pg_temp.check(changed = 0, 'operator cannot delete games');
+  -- Game day only: an old final and next week's game are off limits.
+  update public.games set notes = 'x' where id in ('t-old', 't-next');
+  get diagnostics changed = row_count;
+  perform pg_temp.check(changed = 0, 'operator cannot edit a game outside its game day');
+  update public.game_events set voided_at = now() where game_id = 't-old';
+  get diagnostics changed = row_count;
+  perform pg_temp.check(changed = 0, 'operator cannot undo plays in an old game');
 end $$;
+select pg_temp.expect_error(
+  $$insert into public.game_events (game_id, side, athlete_id, event_type) values ('t-old', 'team', 'austin-dam', 'fg2_made')$$,
+  'operator cannot add plays to an old final');
+select pg_temp.expect_error($$select public.start_period('t-next', 1)$$, 'operator cannot start a game two days early');
+select pg_temp.expect_error($$select public.set_game_status('t-old', 'live')$$, 'operator cannot reopen an old final');
+select pg_temp.expect_error($$select public.clock_set('t-old', 60)$$, 'operator cannot set the clock of an old game');
+reset role;
+
+select pg_temp.act_as('admin');
+select public.clock_set('t-old', 60);
+select pg_temp.check((select clock_seconds_left = 60 from public.games where id = 't-old'), 'admin can still change any game');
 reset role;
 
 -- Periods, clock and event defaults ------------------------------------------
@@ -198,6 +221,25 @@ reset role;
 
 select pg_temp.act_as('anon');
 select pg_temp.check((select count(*) >= 1 from public.media), 'anyone can view media');
+reset role;
+
+-- League standings -------------------------------------------------------------
+
+select pg_temp.act_as('operator');
+select pg_temp.expect_error(
+  $$insert into public.league_standings (season_id, team_id, opponent_id, wins, losses) values ('2026-27', 'bbb-v', 'demo-tigers', 3, 1)$$,
+  'stat operators cannot edit standings');
+reset role;
+
+select pg_temp.act_as('admin');
+insert into public.league_standings (season_id, team_id, opponent_id, wins, losses) values ('2026-27', 'bbb-v', 'demo-tigers', 3, 1);
+select pg_temp.expect_error(
+  $$insert into public.league_standings (season_id, team_id, opponent_id, wins, losses) values ('2026-27', 'bbb-v', 'demo-knights', -1, 0)$$,
+  'wins cannot be negative');
+reset role;
+
+select pg_temp.act_as('anon');
+select pg_temp.check((select wins = 3 and losses = 1 from public.league_standings where opponent_id = 'demo-tigers'), 'anyone can read standings');
 reset role;
 
 \echo 'All database tests passed.'

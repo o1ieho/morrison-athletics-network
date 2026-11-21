@@ -727,8 +727,12 @@
   background: #17211c;
 }
 
-.op-picker-game:hover {
+a.op-picker-game:hover {
   background: #1f2c25;
+}
+
+.op-picker-game.locked strong {
+  color: #97a39c;
 }
 
 .op-picker-game strong {
