@@ -9,6 +9,7 @@ import {
   gameLeaders,
   parseClock,
   periodLabel,
+  shortName,
   teamFouls,
   timeoutsUsed,
 } from "./basketball.ts";
@@ -205,3 +206,9 @@ describe("agrees with public.player_game_stats", () => {
 function pick(line: StatLine, keys: Array<keyof StatLine>) {
   return Object.fromEntries(keys.map((key) => [key, line[key]]));
 }
+
+test("short names for narrow columns", () => {
+  assert.equal(shortName("Sam Chancler"), "S. Chancler");
+  assert.equal(shortName("Mary Ann  Lee"), "M. Lee");
+  assert.equal(shortName("Ito"), "Ito");
+});

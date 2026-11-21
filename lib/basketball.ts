@@ -253,6 +253,13 @@ export function playerLabel(player: Pick<RosterPlayer, "name" | "number"> | unde
   return player.number === null ? player.name : `#${player.number} ${player.name}`;
 }
 
+/** "Sam Chancler" → "S. Chancler", for narrow table columns. Single names stay as they are. */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name.trim();
+  return `${parts[0][0]}. ${parts[parts.length - 1]}`;
+}
+
 export function describeEvent(
   event: Pick<GameEvent, "side" | "type" | "period">,
   names: { team: string; opponent: string; player?: Pick<RosterPlayer, "name" | "number">; periodCount?: number },
