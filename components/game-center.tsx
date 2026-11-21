@@ -6,8 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "@/components/countdown";
 import { ConnectionNote } from "@/components/connection-note";
 import { Court, CourtLegend } from "@/components/court";
-import { GameRecap } from "@/components/game-recap";
+import { GameRecap, OPEN_PLAY_EVENT } from "@/components/game-recap";
 import { LiveAnnouncer } from "@/components/live-announcer";
+import { useReportLiveGame } from "@/components/live-games";
 import { PreGame, type GamePreview } from "@/components/pregame";
 import { RunStrip } from "@/components/run-strip";
 import { ScoreRoll } from "@/components/score-roll";
@@ -29,7 +30,7 @@ import {
   timeoutsUsed,
   type BoxScore,
 } from "@/lib/basketball";
-import { formatDateTime, teamLabel } from "@/lib/format";
+import { formatDateTime, matchupLabel, teamLabel } from "@/lib/format";
 import {
   annotatePlays,
   biggestRuns,
@@ -70,6 +71,8 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   const live = useLiveGame(initial.game.id, initial);
   useCatchUp(live.status);
   const game = live.game ?? initial.game;
+  // Keeps the header's Live link right without the provider re-reading this game.
+  useReportLiveGame(game);
   const roster = live.roster;
   const events = live.events;
   const names = useMemo(() => ({ team: "Broncos", opponent: game.opponent.shortName }), [game.opponent.shortName]);
@@ -131,11 +134,12 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
               </aside>
             </div>
 
-            <div className="tabs" role="tablist">
-              <button type="button" role="tab" aria-selected={tab === "box"} onClick={() => setTab("box")}>
+            {/* Toggle buttons rather than ARIA tabs: no arrow-key tab pattern is promised. */}
+            <div className="tabs" role="group" aria-label="Game details">
+              <button type="button" aria-pressed={tab === "box"} onClick={() => setTab("box")}>
                 Box score
               </button>
-              <button type="button" role="tab" aria-selected={tab === "flow"} onClick={() => setTab("flow")}>
+              <button type="button" aria-pressed={tab === "flow"} onClick={() => setTab("flow")}>
                 Lead tracker
               </button>
             </div>
@@ -210,6 +214,10 @@ function Scoreboard({
 
   return (
     <section className="gc-board" aria-label="Scoreboard">
+      {/* The page's main heading, for screen readers: the board shows the same thing visually. */}
+      <h1 className="visually-hidden">
+        {matchupLabel(game)}, {teamLabel(game.team)}
+      </h1>
       <div className={`gc-board-meta ${run ? "has-run" : ""}`}>
         <span className="gc-meta-text">
           {teamLabel(game.team)} · {formatDateTime(game.startsAt)}
@@ -432,9 +440,9 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
         </span>
       </div>
       <div className="gc-controls">
-        <div className="tabs small" role="tablist">
+        <div className="tabs small" role="group" aria-label="Shot chart view">
           {(["shots", "zones"] as const).map((option) => (
-            <button key={option} type="button" role="tab" aria-selected={view === option} onClick={() => setView(option)}>
+            <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)}>
               {option === "shots" ? "Every shot" : "By zone"}
             </button>
           ))}
@@ -499,7 +507,9 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
   // Newest first.
   const rows = useMemo(() => activeEvents(events).reverse(), [events]);
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const periods = [...new Set(rows.map((event) => event.period))].sort((a, b) => a - b);
   const filtered = rows.filter(
@@ -509,24 +519,35 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
   );
   const shown = showAll ? filtered : filtered.slice(0, FEED_LIMIT);
 
-  // A recap link (#play-…) opens the feed on that play's quarter and scrolls to it.
+  // A recap link (#play-…, or a repeat click on one) opens the feed on that
+  // play's quarter and scrolls to it.
+  const [jumps, setJumps] = useState(0);
   useEffect(() => {
-    const open = () => {
-      const hash = decodeURIComponent(window.location.hash.slice(1));
-      const event = hash.startsWith("play-") ? rowsRef.current.find((entry) => entry.id === hash.slice(5)) : undefined;
+    const open = (id: string) => {
+      const event = rowsRef.current.find((entry) => entry.id === id);
       if (!event) return;
       setKind("all");
       setPeriod(event.period);
       setShowAll(true);
       setTarget(event.id);
+      setJumps((count) => count + 1);
     };
-    open();
-    window.addEventListener("hashchange", open);
-    return () => window.removeEventListener("hashchange", open);
+    const fromHash = () => {
+      const hash = decodeURIComponent(window.location.hash.slice(1));
+      if (hash.startsWith("play-")) open(hash.slice(5));
+    };
+    const fromLink = (event: Event) => open((event as CustomEvent<string>).detail);
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    window.addEventListener(OPEN_PLAY_EVENT, fromLink);
+    return () => {
+      window.removeEventListener("hashchange", fromHash);
+      window.removeEventListener(OPEN_PLAY_EVENT, fromLink);
+    };
   }, []);
   useEffect(() => {
     if (target) document.getElementById(`play-${target}`)?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
-  }, [target]);
+  }, [target, jumps]);
 
   // Scrolled down the feed: new plays don't push what you're reading; a button offers them instead.
   const count = useRef(rows.length);
@@ -538,7 +559,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
 
   const names = { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount };
   const filterButton = (active: boolean, label: string, onClick: () => void) => (
-    <button key={label} type="button" role="tab" aria-selected={active} onClick={onClick}>
+    <button key={label} type="button" aria-pressed={active} onClick={onClick}>
       {label}
     </button>
   );
@@ -549,12 +570,12 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
         <h2>Play-by-play</h2>
       </div>
       <div className="gc-feed-filters">
-        <div className="segments" role="tablist" aria-label="Plays">
+        <div className="segments" role="group" aria-label="Show plays">
           {(["all", "scoring", "key"] as const).map((option) =>
             filterButton(kind === option, option === "all" ? "All" : option === "scoring" ? "Scoring" : "Key", () => setKind(option)),
           )}
         </div>
-        <div className="segments" role="tablist" aria-label="Quarter">
+        <div className="segments" role="group" aria-label="Quarter">
           {(["all", ...periods] as const).map((option) =>
             filterButton(period === option, option === "all" ? "All Qs" : periodLabel(option, game.periodCount), () => setPeriod(option)),
           )}

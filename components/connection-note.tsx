@@ -25,9 +25,15 @@ export function ConnectionNote({ status }: { status: ConnectionStatus }) {
     return () => window.clearInterval(timer);
   }, [down]);
 
-  if (downSince === null) return null;
-  const elapsed = now - downSince;
-  if (elapsed < 5000) return null;
-  if (elapsed < 60_000) return <span className="connection">Reconnecting…</span>;
-  return <span className="connection stale">Last update {Math.floor(elapsed / 60_000)}m ago · retrying</span>;
+  // The status region is always present, so screen readers announce it when it fills in.
+  const elapsed = downSince === null ? 0 : now - downSince;
+  return (
+    <span role="status">
+      {elapsed < 5000 ? null : elapsed < 60_000 ? (
+        <span className="connection">Reconnecting…</span>
+      ) : (
+        <span className="connection stale">Last update {Math.floor(elapsed / 60_000)}m ago · retrying</span>
+      )}
+    </span>
+  );
 }

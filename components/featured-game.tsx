@@ -96,35 +96,40 @@ export function FeaturedGame({ initial, form = [] }: { initial: LiveSnapshot; fo
         </div>
 
         <div className="feature-bottom">
-          {run ? (
-            <RunStrip run={run} names={names} periodCount={game.periodCount} className="in-feature" />
-          ) : (
-            <span className="feature-last">
-              {isLive && lastPlay ? (
-                `${periodLabel(lastPlay.period, game.periodCount)} ${formatClock(lastPlay.clockSecondsLeft)} · ${describeEvent(lastPlay, {
-                  team: "Broncos",
-                  opponent: game.opponent.shortName,
-                  player: lastPlay.athleteId ? players.get(lastPlay.athleteId) : undefined,
-                  periodCount: game.periodCount,
-                })}`
-              ) : isLive ? (
-                "Tip-off"
-              ) : headline ? (
-                <span className="feature-headline">{headline}</span>
-              ) : form.length ? (
-                <span className="feature-form">
-                  Form
-                  {form.map(({ game: result, result: letter }) => (
-                    <span key={result.id} className={`form-tile small ${letter}`} title={`${result.teamScore}–${result.opponentScore} vs ${result.opponent.shortName}`}>
-                      {letter}
-                    </span>
-                  ))}
-                </span>
-              ) : (
-                "Game preview and roster"
-              )}
-            </span>
-          )}
+          {/* Always mounted, so a run wipes in and fades out here too; otherwise the last-play line. */}
+          <RunStrip
+            run={run}
+            names={names}
+            periodCount={game.periodCount}
+            className="in-feature"
+            fallback={
+              <span className="feature-last">
+                {isLive && lastPlay ? (
+                  `${periodLabel(lastPlay.period, game.periodCount)} ${formatClock(lastPlay.clockSecondsLeft)} · ${describeEvent(lastPlay, {
+                    team: "Broncos",
+                    opponent: game.opponent.shortName,
+                    player: lastPlay.athleteId ? players.get(lastPlay.athleteId) : undefined,
+                    periodCount: game.periodCount,
+                  })}`
+                ) : isLive ? (
+                  "Tip-off"
+                ) : headline ? (
+                  <span className="feature-headline">{headline}</span>
+                ) : form.length ? (
+                  <span className="feature-form">
+                    Form
+                    {form.map(({ game: result, result: letter }) => (
+                      <span key={result.id} className={`form-tile small ${letter}`} title={`${result.teamScore}–${result.opponentScore} vs ${result.opponent.shortName}`}>
+                        {letter}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  "Game preview and roster"
+                )}
+              </span>
+            }
+          />
           <span className="feature-cta">{isLive ? "Follow live" : game.status === "final" ? "Recap" : "Details"} →</span>
         </div>
       </Link>

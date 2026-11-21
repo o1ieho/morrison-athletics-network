@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { formatClock, periodLabel } from "@/lib/basketball";
 import type { Run } from "@/lib/game-analysis";
 import { useBriefly, useFlashKey } from "@/lib/use-flash";
@@ -17,19 +17,25 @@ export function RunStrip({
   names,
   periodCount,
   className = "",
+  fallback = null,
 }: {
   run: Run | null;
   names: { team: string; opponent: string };
   periodCount: number;
   className?: string;
+  /** Shown in the strip's place when no run is on (the home card's last-play line). */
+  fallback?: React.ReactNode;
 }) {
   const appeared = useFlashKey(Boolean(run));
   const fading = useBriefly(appeared, 200);
-  // The run that just ended stays on screen while it fades.
+  // The run that just ended stays on screen while it fades. (`last` holds the
+  // run from the previous commit; this render still has it while `run` is null.)
   const last = useRef(run);
-  if (run) last.current = run;
+  useEffect(() => {
+    if (run) last.current = run;
+  }, [run]);
   const shown = run ?? (fading ? last.current : null);
-  if (!shown) return null;
+  if (!shown) return <>{fallback}</>;
 
   const state = !run ? "leaving" : appeared ? "entering" : "";
   return (

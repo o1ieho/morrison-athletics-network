@@ -833,6 +833,8 @@ a.game-row:hover {
   margin: 18px 0 16px;
   border-bottom: 2px solid var(--line);
   overflow-x: auto;
+  /* The buttons overlap the rule by 2px; without this a stray vertical scrollbar shows. */
+  overflow-y: hidden;
 }
 
 .tabs button,
@@ -858,7 +860,7 @@ a.game-row:hover {
   color: var(--ink);
 }
 
-.tabs [aria-selected="true"],
+.tabs [aria-pressed="true"],
 .tabs [aria-current="page"] {
   border-bottom-color: var(--brand);
   color: var(--ink);
@@ -928,7 +930,7 @@ a.game-row:hover {
 
 .swipe-hint {
   padding: 6px 18px 0;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
   text-align: right;
@@ -967,7 +969,7 @@ a.game-row:hover {
 .table .jersey {
   display: inline-block;
   min-width: 26px;
-  color: var(--faint);
+  color: var(--muted);
   font-weight: 700;
 }
 
@@ -1514,11 +1516,16 @@ a.team-card:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.25s ease;
 }
 
-.media-tile:hover img {
-  transform: scale(1.04);
+@media (prefers-reduced-motion: no-preference) {
+  .media-tile img {
+    transition: transform 0.25s ease;
+  }
+
+  .media-tile:hover img {
+    transform: scale(1.04);
+  }
 }
 
 .media-play {
@@ -1816,6 +1823,13 @@ a.team-card:hover {
   font-weight: 500;
 }
 
+/* Phones: drop "Boys Varsity" so the period and clock stay on screen. */
+@media (max-width: 479px) {
+  .live-bar-team {
+    display: none;
+  }
+}
+
 .live-bar-score {
   font-weight: 700;
   text-transform: uppercase;
@@ -2100,7 +2114,7 @@ a.team-card:hover {
 .leader-bar-name .jersey {
   display: inline-block;
   min-width: 24px;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .leader-bar-name:hover {
@@ -2140,7 +2154,7 @@ a.team-card:hover {
 }
 
 .leader-bar-empty .leader-bar-value {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .leader-bars li:first-child .leader-bar-fill {
@@ -2559,7 +2573,7 @@ a.team-card:hover {
 }
 
 .gc-line thead th {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -2593,7 +2607,7 @@ a.team-card:hover {
 }
 
 .gc-line td.future {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 @media (min-width: 1000px) {
@@ -2712,13 +2726,16 @@ a.team-card:hover {
 }
 
 /* The play feed fills its column and scrolls on its own. */
-.gc-plays {
-  max-height: 520px;
-}
+/* On phones the feed flows with the page (no scroller inside a scroller);
+   the 30-row limit and "Show all" keep it in check. */
+@media (max-width: 759px) {
+  .gc-plays .gc-feed-wrap {
+    display: block;
+    min-height: 0;
+  }
 
-@media (min-width: 760px) {
-  .gc-plays {
-    max-height: none;
+  .gc-plays .gc-feed {
+    overflow: visible;
   }
 }
 
@@ -2751,11 +2768,11 @@ a.team-card:hover {
   margin-left: 0;
 }
 
-.segments button:not([aria-selected="true"]):hover {
+.segments button:not([aria-pressed="true"]):hover {
   color: var(--ink);
 }
 
-.segments [aria-selected="true"] {
+.segments [aria-pressed="true"] {
   position: relative;
   border-color: var(--ink);
   background: var(--ink);
@@ -2863,7 +2880,7 @@ a.team-card:hover {
 }
 
 .gc-feed-time {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -3090,7 +3107,7 @@ a.team-card:hover {
 }
 
 .connection.stale {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
 
@@ -3364,16 +3381,48 @@ a.team-card:hover {
   white-space: nowrap;
 }
 
-.lead-strip-stats abbr {
+/* Two-sided stats: one line per team, names spelled out. */
+.lead-strip-stats dd > span {
+  display: block;
+}
+
+.lead-strip-stats dd > span + span {
+  margin-top: 2px;
+}
+
+.lead-strip-stats small {
+  display: inline-block;
+  min-width: 4.6em;
   color: var(--muted);
   font-family: var(--font-body-stack);
   font-size: 0.68rem;
   font-weight: 700;
-  text-decoration: none;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.lead-strip-sep {
-  color: var(--faint);
+.lead-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 4px;
+}
+
+.lead-strip-head h2 {
+  font-size: 1.1rem;
+}
+
+.lead-strip-head .flow-legend {
+  gap: 4px 14px;
+  font-size: 0.78rem;
+}
+
+.swatch.run {
+  background: var(--highlight-soft);
+  outline: 1px solid var(--line-strong);
+  outline-offset: -1px;
 }
 
 /* The full chart draws itself once when the Lead tracker tab is opened. */

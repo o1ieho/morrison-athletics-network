@@ -13,7 +13,8 @@ import { ScoreRoll } from "./score-roll";
 /**
  * A score bug under the header on every page while any game is live. The live
  * games come from LiveGamesProvider. On a game's own page that game is left
- * out (its scoreboard is right there), so the bar only shows other live games.
+ * out (its scoreboard is right there), so the bar only shows other live games;
+ * on the home page, which features every live game, it's hidden.
  */
 export function LiveBar() {
   const live = useLiveGames();
@@ -21,7 +22,8 @@ export function LiveBar() {
   useCatchUp();
   const [now, setNow] = useState(() => Date.now());
   const pathname = usePathname();
-  const games = live.filter((game) => pathname !== `/games/${game.id}`);
+  // The home page already shows every live game as a big card.
+  const games = pathname === "/" ? [] : live.filter((game) => pathname !== `/games/${game.id}`);
 
   const ticking = games.some((game) => game.clockRunning);
   useEffect(() => {

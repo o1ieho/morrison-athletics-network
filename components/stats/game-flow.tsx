@@ -193,6 +193,22 @@ export function LeadStrip({
 
   return (
     <section className="card lead-strip" aria-label="Lead tracker">
+      <div className="lead-strip-head">
+        <h2>Lead tracker</h2>
+        <span className="flow-legend" aria-hidden="true">
+          <span>
+            <i className="swatch team" /> Broncos ahead
+          </span>
+          <span>
+            <i className="swatch opponent" /> {opponentName} ahead
+          </span>
+          {runs.length > 0 && (
+            <span>
+              <i className="swatch run" /> 8+ run
+            </span>
+          )}
+        </span>
+      </div>
       <div className="lead-strip-plot">
         <svg className="lead-strip-back" viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none" aria-hidden="true">
           {runs.map((run) => {
@@ -252,15 +268,23 @@ export function LeadStrip({
         <div>
           <dt>Biggest lead</dt>
           <dd>
-            <abbr title="Broncos">BRO</abbr> {flow.largestLead.team} <span className="lead-strip-sep">·</span>{" "}
-            <abbr title={opponentName}>{opponentName.slice(0, 3).toUpperCase()}</abbr> {flow.largestLead.opponent}
+            <span>
+              <small>Broncos</small> {flow.largestLead.team}
+            </span>
+            <span>
+              <small>{opponentName}</small> {flow.largestLead.opponent}
+            </span>
           </dd>
         </div>
         <div>
           <dt>Time leading</dt>
           <dd>
-            <abbr title="Broncos">BRO</abbr> {formatClock(leading.team)} <span className="lead-strip-sep">·</span>{" "}
-            <abbr title={opponentName}>{opponentName.slice(0, 3).toUpperCase()}</abbr> {formatClock(leading.opponent)}
+            <span>
+              <small>Broncos</small> {formatClock(leading.team)}
+            </span>
+            <span>
+              <small>{opponentName}</small> {formatClock(leading.opponent)}
+            </span>
           </dd>
         </div>
       </dl>

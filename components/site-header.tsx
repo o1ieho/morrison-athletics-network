@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useLiveGames } from "./live-games";
 
@@ -28,6 +28,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   // Keeps the menu on screen while its close animation plays.
   const [closing, setClosing] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -37,13 +38,21 @@ export function SiteHeader() {
     return () => window.clearTimeout(timer);
   }, [closing]);
 
-  // The page behind the open menu doesn't scroll.
+  // The page behind the open menu doesn't scroll, and Escape closes the menu.
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setClosing(true);
+      setOpen(false);
+      menuButton.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -55,7 +64,12 @@ export function SiteHeader() {
   // While a game is live, the menu leads with it: on phones the menu is where people look.
   const liveGame = live[0];
   const liveLink = liveGame && (
-    <Link href={`/games/${liveGame.id}`} className="nav-live" aria-current={pathname === `/games/${liveGame.id}` ? "page" : undefined}>
+    <Link
+      href={`/games/${liveGame.id}`}
+      className="nav-live"
+      aria-label={`Live: Broncos vs ${liveGame.opponent.shortName}`}
+      aria-current={pathname === `/games/${liveGame.id}` ? "page" : undefined}
+    >
       <span className="live-tag">Live</span>
       <span className="nav-live-text">Broncos vs {liveGame.opponent.shortName}</span>
     </Link>
@@ -81,6 +95,7 @@ export function SiteHeader() {
           {links}
         </nav>
         <button
+          ref={menuButton}
           type="button"
           className="menu-button"
           aria-expanded={open}

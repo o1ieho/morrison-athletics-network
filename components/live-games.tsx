@@ -1,15 +1,27 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getLiveService } from "@/lib/live/use-live-game";
 import type { Game, GameSummary } from "@/lib/types";
 
-const LiveGamesContext = createContext<GameSummary[]>([]);
+const LiveGamesContext = createContext<{ games: GameSummary[]; report: (game: GameSummary) => void }>({
+  games: [],
+  report: () => {},
+});
 
 /** The games live right now, for the live bar and the header's "Live" link. */
 export function useLiveGames() {
-  return useContext(LiveGamesContext);
+  return useContext(LiveGamesContext).games;
+}
+
+/**
+ * For a game page: passes its own game's live state (which it already follows
+ * over realtime) to the provider, so the provider doesn't have to re-read it.
+ */
+export function useReportLiveGame(game: GameSummary) {
+  const { report } = useContext(LiveGamesContext);
+  useEffect(() => report(game), [game, report]);
 }
 
 /**
@@ -28,15 +40,31 @@ export function LiveGamesProvider({ initial, children }: { initial: GameSummary[
   // game pages the bar checks for changes every 20 seconds instead.
   const onGamePage = pathname.startsWith("/games/");
   const gamesRef = useRef(games);
-  gamesRef.current = games;
+  const pathRef = useRef(pathname);
+  useEffect(() => {
+    gamesRef.current = games;
+    pathRef.current = pathname;
+  }, [games, pathname]);
+
+  // The open game page reports its own game, from its realtime connection.
+  const report = useCallback((update: GameSummary) => {
+    setGames((current) => {
+      const known = current.find((game) => game.id === update.id);
+      if (update.status !== "live") return known ? current.filter((game) => game.id !== update.id) : current;
+      if (known === update) return current;
+      return known ? current.map((game) => (game.id === update.id ? update : game)) : [...current, update];
+    });
+  }, []);
 
   useEffect(() => {
     const service = getLiveService();
 
     // Re-reads every game in the bar: catches up after the page was rendered,
-    // after a phone wakes up, and (on game pages) on a timer.
+    // after a phone wakes up, and (on game pages) on a timer. The game whose
+    // page is open is skipped: that page keeps it current through `report`.
     const refresh = () => {
       for (const game of gamesRef.current) {
+        if (pathRef.current === `/games/${game.id}`) continue;
         void service
           .load(game.id)
           .then((snapshot) => {
@@ -87,5 +115,6 @@ export function LiveGamesProvider({ initial, children }: { initial: GameSummary[
     };
   }, [onGamePage]);
 
-  return <LiveGamesContext.Provider value={games}>{children}</LiveGamesContext.Provider>;
+  const value = useMemo(() => ({ games, report }), [games, report]);
+  return <LiveGamesContext.Provider value={value}>{children}</LiveGamesContext.Provider>;
 }
