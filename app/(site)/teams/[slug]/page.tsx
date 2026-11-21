@@ -7,6 +7,9 @@ import { getData } from "@/lib/data";
 import { average, teamLabel } from "@/lib/format";
 import { recapHeadline } from "@/lib/recap";
 
+/** How many recent finals get a recap headline in the schedule. */
+const RECAP_LIMIT = 3;
+
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sort?: string }> };
 
 async function findTeam(slug: string) {
@@ -33,11 +36,18 @@ export default async function TeamPage({ params, searchParams }: Props) {
   ]);
   const record = records.find((entry) => entry.teamId === team.id);
   const finals = games.filter((game) => game.status === "final");
-  // One-line recap headlines for the results in the schedule.
+  // One-line recap headlines, for the most recent results only: each needs
+  // that game's play-by-play, so the number of reads per view stays small.
+  // A game whose plays fail to load just goes without a headline.
+  const recent = finals.slice(-RECAP_LIMIT);
+  const loaded = await Promise.allSettled(recent.map((game) => data.getGameEvents(game.id)));
   const recaps = new Map(
-    await Promise.all(
-      finals.map(async (game) => [game.id, recapHeadline(game, await data.getGameEvents(game.id), { team: "Broncos", opponent: game.opponent.shortName })] as const),
-    ),
+    recent.flatMap((game, index) => {
+      const result = loaded[index];
+      return result.status === "fulfilled"
+        ? [[game.id, recapHeadline(game, result.value, { team: "Broncos", opponent: game.opponent.shortName })] as const]
+        : [];
+    }),
   );
   const last5 = finals.slice(-5).map((game) => (game.teamScore > game.opponentScore ? "W" : game.teamScore < game.opponentScore ? "L" : "T"));
 
