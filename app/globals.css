@@ -103,9 +103,20 @@ textarea {
   color: inherit;
 }
 
+/* Focus rings need 3:1 against the surface they sit on: ink on the light
+   pages and grey panels, yellow on the green and ink surfaces. */
 :focus-visible {
-  outline: 3px solid var(--green-500);
+  outline: 3px solid var(--ink);
   outline-offset: 2px;
+}
+
+.site-header :focus-visible,
+.site-footer :focus-visible,
+.live-bar :focus-visible,
+.gc-board :focus-visible,
+.gc-last-play :focus-visible,
+.run-strip :focus-visible {
+  outline-color: var(--highlight);
 }
 
 h1,

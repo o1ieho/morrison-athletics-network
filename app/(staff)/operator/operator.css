@@ -24,6 +24,12 @@
   font-size: 15px;
 }
 
+/* Focus rings: white on the dark console (the global ink ring would vanish). */
+.op :focus-visible {
+  outline: 3px solid white;
+  outline-offset: 2px;
+}
+
 /* Only the family is inherited, so each button class keeps its own size and weight. */
 .op button {
   font-family: inherit;
