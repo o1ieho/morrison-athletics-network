@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { keyMoments, lastMeeting, recapHeadline, recentForm } from "./recap.ts";
+import { keyMoments, lastMeeting, recapHeadline, recentForm, runWithArticle } from "./recap.ts";
 import type { EventType, GameEvent, GameSummary, RosterPlayer, Side } from "./types.ts";
 
 const rules = { periodCount: 4, periodLengthSeconds: 480, overtimeLengthSeconds: 240, currentPeriod: 4 };
@@ -35,9 +35,29 @@ test("headline: wire-to-wire when the winner led after every score", () => {
   assert.equal(recapHeadline(score(events), events, names), "Broncos win wire-to-wire");
 });
 
-test("headline: a close finish is a hold-off", () => {
-  const events = [play("opponent", "fg2_made", 1, 400), play("team", "fg3_made", 4, 10)];
-  assert.equal(recapHeadline(score(events), events, names), "Broncos hold off Huskies");
+test("headline: a close finish is worded by who led going into the last two minutes", () => {
+  // Behind all game, won with a 3 at 0:10: a rally, not a hold-off.
+  const rally = [play("opponent", "fg2_made", 1, 400), play("team", "fg3_made", 4, 10)];
+  assert.equal(recapHeadline(score(rally), rally, names), "Broncos rally past Huskies");
+  // Ahead at 2:00 and survived a late basket.
+  const holdOff = [
+    play("opponent", "fg2_made", 1, 400),
+    play("team", "fg3_made", 3, 200),
+    play("team", "fg2_made", 4, 300),
+    play("opponent", "fg2_made", 4, 20),
+  ];
+  assert.equal(recapHeadline(score(holdOff), holdOff, names), "Broncos hold off Huskies");
+  // Level at 2:00.
+  const edge = [play("opponent", "fg2_made", 1, 400), play("team", "fg2_made", 3, 200), play("team", "fg2_made", 4, 30)];
+  assert.equal(recapHeadline(score(edge), edge, names), "Broncos edge Huskies");
+});
+
+test("runs get the right article", () => {
+  assert.equal(runWithArticle(6), "a 6-0");
+  assert.equal(runWithArticle(8), "an 8-0");
+  assert.equal(runWithArticle(11), "an 11-0");
+  assert.equal(runWithArticle(18), "an 18-0");
+  assert.equal(runWithArticle(12), "a 12-0");
 });
 
 test("headline: a big run wins out over the decisive quarter", () => {

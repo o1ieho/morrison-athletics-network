@@ -26,6 +26,16 @@ export type Recap = { headline: string; moments: KeyMoment[] };
 
 const ORDINALS = ["first", "second", "third", "fourth"];
 
+/** "The last two minutes" of a close game, for the hold off / rally past wording. */
+const CLOSING_SECONDS = 120;
+
+/** "a 6-0", "an 8-0", "an 11-0": the article follows how the number is spoken. */
+export function runWithArticle(points: number) {
+  const spoken = String(points);
+  const an = points === 8 || points === 11 || points === 18 || spoken.startsWith("8");
+  return `${an ? "an" : "a"} ${points}-0`;
+}
+
 /** "third quarter", "second half", "overtime", "2OT". */
 export function periodName(period: number, periodCount: number) {
   if (period > periodCount) return period === periodCount + 1 ? "overtime" : `${periodLabel(period, periodCount)}`;
@@ -35,7 +45,9 @@ export function periodName(period: number, periodCount: number) {
 /**
  * The one-line headline for a final. In order of preference:
  * - "Broncos win wire-to-wire": the winner scored first and was never tied or behind after that.
- * - "Broncos hold off Huskies": a final margin of 3 or less.
+ * - A final margin of 3 or less, worded by where the winner stood going into
+ *   the last two minutes: ahead "Broncos hold off Huskies", level "Broncos
+ *   edge Huskies", behind "Broncos rally past Huskies".
  * - "Broncos ride 12-0 run past Huskies": the winner had a run of 10 or more.
  * - "Broncos pull away with 18-6 third quarter": the quarter the winner won by the most.
  */
@@ -51,7 +63,13 @@ export function recapHeadline(game: RecapGame, events: GameEvent[], names: { tea
     plays.length > 0 &&
     plays.every((play) => (winnerSide === "team" ? play.team > play.opponent : play.opponent > play.team));
   if (wireToWire) return `${winner} win wire-to-wire`;
-  if (Math.abs(margin) <= 3) return `${winner} hold off ${loser}`;
+  if (Math.abs(margin) <= 3) {
+    const lastPeriod = Math.max(game.currentPeriod, ...plays.map((play) => play.event.period));
+    const before = plays.filter((play) => play.event.period < lastPeriod || play.event.clockSecondsLeft > CLOSING_SECONDS);
+    const standing = before[before.length - 1];
+    const lead = standing ? (winnerSide === "team" ? standing.team - standing.opponent : standing.opponent - standing.team) : 0;
+    return `${winner} ${lead > 0 ? "hold off" : lead === 0 ? "edge" : "rally past"} ${loser}`;
+  }
 
   const run = biggestRuns(events)[winnerSide];
   if (run && run.points >= 10) return `${winner} ride ${run.points}-0 run past ${loser}`;

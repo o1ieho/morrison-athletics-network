@@ -86,3 +86,22 @@ export function ProfileSkeleton({ label }: { label: string }) {
     </Skeleton>
   );
 }
+
+/** List pages (schedule, news, media, teams): a heading, then rows. */
+export function ListSkeleton() {
+  return (
+    <Skeleton label="Loading…">
+      <span className="sk-bar sk-heading" />
+      <div className="sk-panel">
+        {[0, 1, 2, 3, 4, 5].map((row) => (
+          <div key={row} className="sk-row">
+            <span className="sk-date" />
+            <span className="sk-row-text">
+              <Lines widths={[70, 45]} />
+            </span>
+          </div>
+        ))}
+      </div>
+    </Skeleton>
+  );
+}

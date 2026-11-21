@@ -41,6 +41,7 @@ export default async function HomePage() {
   return (
     <main className="home">
       <AutoRefresh enabled={live.length > 0} seconds={30} />
+      <h1 className="visually-hidden">MAT Athletics Basketball</h1>
       <div className="container stack-lg">
         {snapshots.length > 0 && (
           <section>

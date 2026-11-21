@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "@/lib/basketball";
 import { currentRun } from "@/lib/game-analysis";
-import { periodName } from "@/lib/recap";
+import { periodName, runWithArticle } from "@/lib/recap";
 import type { GameEvent, GameSummary } from "@/lib/types";
 
 /** Screen readers hear at most one update this often, carrying only the latest state. */
@@ -58,7 +58,7 @@ export function LiveAnnouncer({ game, events, clock }: { game: GameSummary; even
     if (runId !== before.run) {
       before.run = runId;
       if (run) {
-        pending.current.run = `${run.side === "team" ? team : opponent} on a ${run.points}-0 run.`;
+        pending.current.run = `${run.side === "team" ? team : opponent} on ${runWithArticle(run.points)} run.`;
         changed = true;
       }
     }
