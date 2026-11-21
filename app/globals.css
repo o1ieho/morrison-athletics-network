@@ -3281,7 +3281,7 @@ a.team-card:hover {
 
 @media (prefers-reduced-motion: no-preference) {
   /* Only the newest stretch grows in. */
-  .lead-strip-front {
+  .lead-strip-front.settled {
     transition: clip-path var(--dur-chart) var(--ease-standard);
   }
 

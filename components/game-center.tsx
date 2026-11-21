@@ -48,6 +48,7 @@ import { useLiveGame } from "@/lib/live/use-live-game";
 import { keyMoments, recapHeadline } from "@/lib/recap";
 import type { GameEvent, GameSummary, RosterPlayer, StatLine } from "@/lib/types";
 import { useFlashKey } from "@/lib/use-flash";
+import { useHydrated } from "@/lib/use-hydrated";
 
 /** Runs at least this big are shaded on the lead tracker. */
 const SHADED_RUN = 8;
@@ -91,8 +92,14 @@ export function GameCenter({ initial, preview }: { initial: LiveSnapshot; previe
   const [tab, setTab] = useState<"box" | "flow">("box");
 
   // Game time for the lead tracker, in 15-second steps so the chart doesn't redraw every tick.
+  // It depends on the current time, so the server and the first browser render stop at the last score.
+  const hydrated = useHydrated();
   const lastT = flow.points[flow.points.length - 1].t;
-  const nowT = isLive ? Math.max(lastT, Math.floor(elapsedSeconds(game, game.currentPeriod, live.clock) / 15) * 15) : undefined;
+  const nowT = isLive
+    ? hydrated
+      ? Math.max(lastT, Math.floor(elapsedSeconds(game, game.currentPeriod, live.clock) / 15) * 15)
+      : lastT
+    : undefined;
   const shaded = runs
     .filter((entry) => entry.points >= SHADED_RUN)
     .map((entry) => ({
