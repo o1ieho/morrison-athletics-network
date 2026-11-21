@@ -3642,3 +3642,121 @@ a.team-card:hover {
 .gc-swap {
   animation: fade-in var(--dur-quick) var(--ease-standard);
 }
+
+/* ---------------------------------------------------------------- Skeletons */
+
+/* Flat, static placeholders (no shimmer). The whole page fades in after 300ms
+   so quick loads never show them. Opacity only, so reduced motion keeps it. */
+.skeleton {
+  animation: fade-in var(--dur-quick) var(--ease-standard) 300ms both;
+}
+
+.sk-bar,
+.sk-title {
+  display: block;
+  height: 12px;
+  background: var(--panel);
+}
+
+.sk-title {
+  width: 40%;
+  height: 14px;
+  margin-bottom: 4px;
+}
+
+.sk-heading {
+  width: 60%;
+  height: 32px;
+}
+
+.sk-block {
+  display: block;
+  background: var(--panel);
+}
+
+.sk-board {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 132px;
+  padding: 0 clamp(24px, 8vw, 96px);
+  background: var(--brand);
+}
+
+.sk-score {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.sk-lead {
+  height: 56px;
+}
+
+.sk-feature {
+  height: clamp(220px, 40vw, 340px);
+  background: var(--brand);
+}
+
+.sk-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 760px) {
+  .sk-panels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sk-panel {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+}
+
+.sk-date {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: var(--panel);
+}
+
+.sk-row-text {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+}
+
+.sk-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+}
+
+.sk-tile {
+  height: 64px;
+  background: var(--panel);
+}
+
+.sk-table {
+  display: grid;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.sk-table-row {
+  height: 36px;
+  border-bottom: 1px solid var(--line);
+}
