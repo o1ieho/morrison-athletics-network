@@ -47,6 +47,8 @@ import type { ConnectionStatus, LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
 import { keyMoments, recapHeadline } from "@/lib/recap";
 import type { GameEvent, GameSummary, RosterPlayer, StatLine } from "@/lib/types";
+import { sortArrivals } from "@/lib/catch-up";
+import { useCatchUp, isCatchingUp } from "@/lib/use-catch-up";
 import { useFlashKey } from "@/lib/use-flash";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -66,6 +68,7 @@ const prefersReducedMotion = () => typeof window !== "undefined" && window.match
  */
 export function GameCenter({ initial, preview }: { initial: LiveSnapshot; preview?: GamePreview }) {
   const live = useLiveGame(initial.game.id, initial);
+  useCatchUp(live.status);
   const game = live.game ?? initial.game;
   const roster = live.roster;
   const events = live.events;
@@ -350,6 +353,40 @@ function TeamScore({
   );
 }
 
+// ---------------------------------------------------------------- New plays
+
+/** How long a new row counts as new: its slide-in plus the yellow hold and fade. */
+const FRESH_ROW_MS = 2000;
+
+/**
+ * Which plays arrived live, for the "new play" animation. Plays on screen at
+ * load don't count, and neither do batches (a phone waking up, a reconnect):
+ * those are added quietly. A play stays new for `freshMs`, so changing a
+ * filter later doesn't replay its animation.
+ */
+function useArrivals(events: GameEvent[], freshMs: number) {
+  const known = useRef<Set<string> | null>(null);
+  const arrivedAt = useRef(new Map<string, number>());
+  const ids = events.map((event) => event.id);
+  const now = Date.now();
+  // Recorded during render (idempotent: a second render finds nothing new) so
+  // the very first paint of a new row already has its class.
+  if (known.current === null) {
+    known.current = new Set(ids);
+  } else {
+    const { fresh, settled } = sortArrivals(known.current, ids, isCatchingUp(now));
+    for (const id of settled) known.current.add(id);
+    for (const id of fresh) {
+      known.current.add(id);
+      arrivedAt.current.set(id, now);
+    }
+  }
+  return (id: string) => {
+    const at = arrivedAt.current.get(id);
+    return at !== undefined && now - at < freshMs;
+  };
+}
+
 // ---------------------------------------------------------------- Shot chart panel
 
 function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
@@ -362,9 +399,8 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
   const shots = active.filter(
     (event) => event.side === "team" && event.shotX !== null && event.shotY !== null && EVENT_META[event.type].isFieldGoal,
   );
-  // Shots on the court when the page loaded don't animate; later ones do.
-  const seen = useRef<Set<string> | null>(null);
-  seen.current ??= new Set(shots.map((shot) => shot.id));
+  // Shots on the court when the page loaded (or caught up in a batch) don't animate.
+  const isFresh = useArrivals(shots, 1000);
   const selected = shots.filter((shot) => playerId === "all" || shot.athleteId === playerId);
   const shooters = roster.filter((player) => shots.some((shot) => shot.athleteId === player.athleteId));
   const made = selected.filter((shot) => EVENT_META[shot.type].made).length;
@@ -425,7 +461,7 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
               y: shot.shotY!,
               made: EVENT_META[shot.type].made,
               latest: shot.id === latestShotId,
-              fresh: !seen.current!.has(shot.id),
+              fresh: isFresh(shot.id),
               dim: playerId !== "all" && shot.athleteId !== playerId,
               label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
             }))}
@@ -456,9 +492,8 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
   const [target, setTarget] = useState<string | null>(null);
   const [unseen, setUnseen] = useState(0);
   const feed = useRef<HTMLOListElement>(null);
-  // Plays present when the page loaded don't animate; anything after does.
-  const seen = useRef<Set<string> | null>(null);
-  seen.current ??= new Set(events.map((event) => event.id));
+  // Plays present when the page loaded, or caught up in a batch, don't animate.
+  const isFresh = useArrivals(events, FRESH_ROW_MS);
 
   const notes = useMemo(() => annotatePlays(events), [events]);
   // Newest first.
@@ -547,7 +582,7 @@ function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameE
         >
           {shown.map((event) => {
             const note = notes.get(event.id);
-            const fresh = !seen.current!.has(event.id);
+            const fresh = isFresh(event.id);
             const highlight = `${fresh ? "pbp-new" : ""} ${event.id === target ? "target" : ""}`;
             if (event.type === "period_end" && note) {
               const leader =

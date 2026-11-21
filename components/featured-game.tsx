@@ -9,6 +9,7 @@ import { currentRun } from "@/lib/game-analysis";
 import type { LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
 import { recapHeadline, type FormResult } from "@/lib/recap";
+import { useCatchUp } from "@/lib/use-catch-up";
 import { ConnectionNote } from "./connection-note";
 import { Countdown } from "./countdown";
 import { LiveAnnouncer } from "./live-announcer";
@@ -24,6 +25,7 @@ import { ScoreRoll } from "./score-roll";
  */
 export function FeaturedGame({ initial, form = [] }: { initial: LiveSnapshot; form?: FormResult[] }) {
   const live = useLiveGame(initial.game.id, initial);
+  useCatchUp(live.status);
   const game = live.game ?? initial.game;
   const isLive = game.status === "live";
   const hasScore = isLive || game.status === "final";

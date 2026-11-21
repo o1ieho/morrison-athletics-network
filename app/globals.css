@@ -1845,6 +1845,11 @@ a.team-card:hover {
   animation: hold-yellow calc(var(--dur-hold) + 600ms) ease-out;
 }
 
+/* Caught up after a wake or reconnect: the colour cue only, never a roll. */
+.caught-up {
+  animation: hold-yellow calc(var(--dur-hold) + 600ms) ease-out;
+}
+
 /* A correction (an undone basket): grey, so it doesn't read as a score. */
 .flash-down {
   animation: hold-grey calc(var(--dur-hold) + 600ms) ease-out;

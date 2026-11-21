@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clockSecondsLeft, formatClock, periodLabel } from "@/lib/basketball";
 import { teamLabel } from "@/lib/format";
+import { useCatchUp } from "@/lib/use-catch-up";
 import type { GameSummary } from "@/lib/types";
 import { useLiveGames } from "./live-games";
 import { ScoreRoll } from "./score-roll";
@@ -16,6 +17,8 @@ import { ScoreRoll } from "./score-roll";
  */
 export function LiveBar() {
   const live = useLiveGames();
+  // The live games are re-read on load and on wake: those jumps don't roll.
+  useCatchUp();
   const [now, setNow] = useState(() => Date.now());
   const pathname = usePathname();
   const games = live.filter((game) => pathname !== `/games/${game.id}`);

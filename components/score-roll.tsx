@@ -1,6 +1,9 @@
 "use client";
 
+import { isSinglePlayChange } from "@/lib/catch-up";
 import { useBriefly, useFlash } from "@/lib/use-flash";
+
+const onePlay = (previous: number, next: number) => isSinglePlayChange(next - previous);
 
 /**
  * A score that rolls to its new value when it changes live: the old number
@@ -9,6 +12,10 @@ import { useBriefly, useFlash } from "@/lib/use-flash";
  * correction (the score going down) flashes grey and gets no tag, so it
  * doesn't look like a basket. With reduced motion the number swaps in place
  * and only the colour changes. Nothing animates on page load.
+ *
+ * A catch-up (a phone waking, a reconnect, or a jump bigger than one basket)
+ * gets no roll and no tag, since "+7" isn't a basket: the number just
+ * updates and holds yellow so you can see it changed.
  */
 export function ScoreRoll({
   value,
@@ -23,11 +30,11 @@ export function ScoreRoll({
   /** Smaller, quicker roll for the live bar. */
   compact?: boolean;
 }) {
-  const { key, previous, delta } = useFlash(value);
+  const { key, previous, delta, live } = useFlash(value, onePlay);
   // The outgoing digit is removed once its exit has played.
-  const rolling = useBriefly(key, compact ? 320 : 400);
-  const tagged = useBriefly(key, 2200);
-  const tone = delta < 0 ? "flash-down" : "flash";
+  const rolling = useBriefly(live ? key : 0, compact ? 320 : 400);
+  const tagged = useBriefly(live ? key : 0, 2200);
+  const tone = !live ? "caught-up" : delta < 0 ? "flash-down" : "flash";
 
   return (
     <span className={`score-roll ${compact ? "compact" : ""} ${className}`}>

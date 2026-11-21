@@ -38,7 +38,7 @@ export function LeaderBars({ title, rows, unit }: { title: string; rows: LeaderR
 }
 
 function LeaderBarRow({ row, share, unit, rankUp }: { row: LeaderRow; share: number; unit: string; rankUp: boolean }) {
-  const { key, delta } = useFlash(row.value);
+  const { key, delta, live } = useFlash(row.value);
   return (
     <li className={rankUp ? "rank-up" : undefined}>
       <Link href={`/players/${row.player.slug}`} className="leader-bar-name">
@@ -48,7 +48,7 @@ function LeaderBarRow({ row, share, unit, rankUp }: { row: LeaderRow; share: num
       <span className="leader-bar-track" aria-hidden="true">
         <span className="leader-bar-fill" style={{ transform: `scaleX(${share})` }} />
       </span>
-      <span key={key} className={`leader-bar-value ${key && delta > 0 ? "flash" : ""}`}>
+      <span key={key} className={`leader-bar-value ${live && delta > 0 ? "flash" : ""}`}>
         {row.display ?? row.value}
         <small>{unit}</small>
       </span>

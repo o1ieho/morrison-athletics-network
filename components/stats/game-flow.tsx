@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatClock, periodLabel, periodLengthSeconds } from "@/lib/basketball";
 import type { GameFlow, Run } from "@/lib/game-analysis";
 import type { Game } from "@/lib/types";
+import { isCatchingUp } from "@/lib/use-catch-up";
 import { useFlashKey } from "@/lib/use-flash";
 
 type Rules = Pick<Game, "periodCount" | "periodLengthSeconds" | "overtimeLengthSeconds">;
@@ -171,8 +172,8 @@ export function LeadStrip({
 }) {
   const limit = marginLimit(flow);
   const rescaled = useFlashKey(limit);
-  // The clip only eases once the page has settled, so catching up to the
-  // current game time right after load doesn't animate.
+  // The clip only eases once the page has settled and not while catching up
+  // (after load or a wake), so a jump of several plays doesn't sweep across.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setSettled(true), 100);
@@ -206,7 +207,7 @@ export function LeadStrip({
         {!empty && (
           <svg
             key={rescaled}
-            className={`lead-strip-front ${rescaled ? "rescaled" : ""} ${settled ? "settled" : ""}`}
+            className={`lead-strip-front ${rescaled ? "rescaled" : ""} ${settled && !isCatchingUp() ? "settled" : ""}`}
             viewBox={`0 0 ${SW} ${SH}`}
             preserveAspectRatio="none"
             style={{ clipPath: `inset(0 ${(1 - shownShare) * 100}% 0 0)` }}
