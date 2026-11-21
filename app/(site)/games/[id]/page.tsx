@@ -19,7 +19,15 @@ export default async function GamePage({ params }: Props) {
   const data = await getData();
   const game = await data.getGame(id);
   if (!game) notFound();
-  const [events, roster] = await Promise.all([data.getGameEvents(id), data.getRoster(game.teamId)]);
+  // An upcoming game's page also shows season leaders, form and the last meeting.
+  const upcoming = game.status === "scheduled" || game.status === "postponed";
+  const [events, roster, preview] = await Promise.all([
+    data.getGameEvents(id),
+    data.getRoster(game.teamId),
+    upcoming
+      ? Promise.all([data.getSeasonStats(game.teamId), data.getGames({ teamId: game.teamId })]).then(([stats, games]) => ({ stats, games }))
+      : undefined,
+  ]);
 
   return (
     <main className="page">
@@ -27,7 +35,7 @@ export default async function GamePage({ params }: Props) {
         <Link href={`/teams/${game.team.slug}`} className="muted small" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <ChevronLeft size={16} /> {teamLabel(game.team)} schedule
         </Link>
-        <GameCenter initial={{ game, events, roster }} />
+        <GameCenter initial={{ game, events, roster }} preview={preview} />
       </div>
     </main>
   );

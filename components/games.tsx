@@ -22,8 +22,8 @@ function dayParts(iso: string) {
   return { month, day };
 }
 
-/** One game in a list: date, matchup, then the score or start time. */
-export function GameRow({ game, showTeam = true }: { game: GameSummary; showTeam?: boolean }) {
+/** One game in a list: date, matchup, then the score or start time. `recap` is a final's one-line headline. */
+export function GameRow({ game, showTeam = true, recap }: { game: GameSummary; showTeam?: boolean; recap?: string }) {
   const { month, day } = dayParts(game.startsAt);
   const result = resultLetter(game);
   const hasScore = game.status === "live" || game.status === "final";
@@ -42,6 +42,7 @@ export function GameRow({ game, showTeam = true }: { game: GameSummary; showTeam
           {showTeam ? `${teamLabel(game.team)} · ` : ""}
           {game.location || (game.isHome ? "Home" : "Away")}
         </span>
+        {recap && <span className="game-recap">{recap}</span>}
       </span>
       <span className="game-side">
         {hasScore ? (

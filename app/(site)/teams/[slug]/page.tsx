@@ -5,6 +5,7 @@ import { LeaderBars } from "@/components/stats/leader-bars";
 import { SORT_KEYS, StatsTable, type SortKey } from "@/components/stats-table";
 import { getData } from "@/lib/data";
 import { average, teamLabel } from "@/lib/format";
+import { recapHeadline } from "@/lib/recap";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sort?: string }> };
 
@@ -32,6 +33,12 @@ export default async function TeamPage({ params, searchParams }: Props) {
   ]);
   const record = records.find((entry) => entry.teamId === team.id);
   const finals = games.filter((game) => game.status === "final");
+  // One-line recap headlines for the results in the schedule.
+  const recaps = new Map(
+    await Promise.all(
+      finals.map(async (game) => [game.id, recapHeadline(game, await data.getGameEvents(game.id), { team: "Broncos", opponent: game.opponent.shortName })] as const),
+    ),
+  );
   const last5 = finals.slice(-5).map((game) => (game.teamScore > game.opponentScore ? "W" : game.teamScore < game.opponentScore ? "L" : "T"));
 
   return (
@@ -104,7 +111,7 @@ export default async function TeamPage({ params, searchParams }: Props) {
             </div>
             <div className="card game-list">
               {games.map((game) => (
-                <GameRow key={game.id} game={game} showTeam={false} />
+                <GameRow key={game.id} game={game} showTeam={false} recap={recaps.get(game.id)} />
               ))}
               {!games.length && <p className="empty">No games posted yet.</p>}
             </div>

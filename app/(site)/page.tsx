@@ -5,6 +5,7 @@ import { FeaturedGame } from "@/components/featured-game";
 import { startMs, type CalendarEvent } from "@/lib/calendar";
 import { getData } from "@/lib/data";
 import { getSchedule } from "@/lib/data/calendar";
+import { recentForm } from "@/lib/recap";
 import { formatDay, formatShortDay, formatTime, teamLabel } from "@/lib/format";
 import type { Announcement, GameSummary, MediaItem, Team, TeamRecord } from "@/lib/types";
 
@@ -51,7 +52,11 @@ export default async function HomePage() {
             </div>
             <div className="stack">
               {snapshots.map((snapshot) => (
-                <FeaturedGame key={snapshot.game.id} initial={snapshot} />
+                <FeaturedGame
+                  key={snapshot.game.id}
+                  initial={snapshot}
+                  form={snapshot.game.status === "scheduled" ? recentForm(games.filter((game) => game.teamId === snapshot.game.teamId), snapshot.game.startsAt) : undefined}
+                />
               ))}
             </div>
           </section>

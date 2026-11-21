@@ -39,6 +39,21 @@
   --brand: #455a4d;
   --brand-dark: #2f4b3f;
   --panel: #dfe1df;
+
+  /* Motion. Durations from the Material 3 scale, inside NN/g's 100–400ms band.
+     Motion only ever means "this just changed"; nothing animates on page load. */
+  --dur-instant: 100ms; /* hover, press, tab underline */
+  --dur-quick: 200ms; /* exits, crossfades, filter changes */
+  --dur-enter: 300ms; /* entrances: new play row, run strip, digit roll in */
+  --dur-chart: 450ms; /* chart segment growth, bar length change */
+  --dur-hold: 1200ms; /* how long "just changed" yellow stays before fading */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* most transitions */
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1); /* things arriving */
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15); /* things leaving */
+
+  /* The only "just changed" colour, and its soft version for row backgrounds. */
+  --highlight: #f5c542;
+  --highlight-soft: #fff4d6;
 }
 
 *,
@@ -105,7 +120,7 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2.2rem, 5.5vw, 3.4rem);
+  font-size: clamp(2.2rem, 7vw, 3.6rem);
   text-transform: uppercase;
 }
 
@@ -181,6 +196,7 @@ p {
 
 .split {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -197,6 +213,20 @@ p {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+/* Section headings get the editorial rule: a short brand bar above. */
+.section-head h2 {
+  font-size: 1.5rem;
+}
+
+.section-head h2::before {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 4px;
+  margin-bottom: 8px;
+  background: var(--brand);
 }
 
 .section-head a {
@@ -220,8 +250,8 @@ p {
 }
 
 .eyebrow {
-  color: var(--green-600);
-  font-size: 0.75rem;
+  color: var(--muted);
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -306,20 +336,50 @@ p {
 }
 
 .nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 8px 14px;
   color: white;
   font-weight: 500;
   font-size: 1.05rem;
 }
 
-.nav a:hover {
-  background: rgba(255, 255, 255, 0.1);
+/* The current page gets a square 4px bar under the link; hovering grows one in. */
+.nav a::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 4px;
+  background: white;
+  transform: scaleX(0);
+  transform-origin: left;
 }
 
-.nav a[aria-current="page"] {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 8px;
+.nav a:hover::after,
+.nav a[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+.nav a:hover:not([aria-current="page"])::after {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nav a::after {
+    transition: transform var(--dur-instant) var(--ease-standard);
+  }
+}
+
+/* While a game is live it leads the nav. On wide screens just the tag. */
+.nav-live {
+  gap: 10px;
+}
+
+.nav .nav-live-text {
+  display: none;
 }
 
 .menu-button {
@@ -338,21 +398,71 @@ p {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Full-width rows in Anton, one rule between each. */
 .mobile-nav {
   display: grid;
-  padding: 4px var(--gutter) 14px;
+  padding: 0 var(--gutter) 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--brand);
 }
 
 .mobile-nav a {
-  padding: 12px 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-weight: 500;
-  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mobile-nav a:last-child {
+  border-bottom: 0;
 }
 
 .mobile-nav a[aria-current="page"] {
-  color: var(--silver-light);
+  color: white;
+  text-decoration: underline;
+  text-decoration-thickness: 4px;
+  text-underline-offset: 6px;
+}
+
+.mobile-nav .live-tag {
+  font-family: var(--font-body-stack);
+}
+
+.mobile-nav.closing {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-nav {
+    animation: menu-in var(--dur-quick) var(--ease-enter);
+  }
+
+  .mobile-nav.closing {
+    animation: menu-out 150ms var(--ease-exit);
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes menu-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 @media (min-width: 820px) {
@@ -485,7 +595,7 @@ p {
 
 .card-head h2,
 .card-head h3 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
 }
 
 .empty {
@@ -697,7 +807,7 @@ a.game-row:hover {
 
 .bonus {
   padding: 1px 6px;
-  background: #f5c542;
+  background: var(--highlight);
   color: var(--ink);
   font-size: 0.65rem;
   font-weight: 800;
@@ -778,8 +888,54 @@ a.game-row:hover {
   position: sticky;
   left: 0;
   z-index: 1;
+  border-right: 1px solid var(--line-strong);
   background: var(--surface);
   text-align: left;
+}
+
+/* On phones the sticky name column is capped and names shorten to "S. Chancler". */
+.table .name-short {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .table th:first-child,
+  .table td:first-child {
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .table .name-full {
+    display: none;
+  }
+
+  .table .name-short {
+    display: inline;
+  }
+}
+
+.swipe-hint {
+  padding: 6px 18px 0;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* The game high in each column, the newspaper way: bold with a rule under it. */
+.table td.game-high {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.table td.game-high > span {
+  border-bottom: 2px solid var(--highlight);
+}
+
+.table .box-opponent td {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .table tbody tr:hover td {
@@ -1484,9 +1640,6 @@ a.team-card:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.feature-clock.stopped {
-  color: rgba(255, 255, 255, 0.65);
-}
 
 .feature-fouls,
 .feature-when {
@@ -1658,8 +1811,7 @@ a.team-card:hover {
   letter-spacing: 0.02em;
 }
 
-.live-bar-score b {
-  display: inline-block;
+.live-bar-score .score-roll {
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 400;
@@ -1675,49 +1827,172 @@ a.team-card:hover {
   font-weight: 700;
 }
 
-/* A number that just changed: a quick yellow flash and pop. */
+/* "Just changed". The colour cue lives outside any motion query, so people who
+   turn off motion still see that a number changed. Movement (the digit roll,
+   slides, wipes) only runs under prefers-reduced-motion: no-preference. */
 .flash {
-  animation: score-flash 1.2s ease-out;
+  animation: hold-yellow calc(var(--dur-hold) + 600ms) ease-out;
 }
 
-@keyframes score-flash {
-  0% {
-    color: #f5c542;
-    transform: scale(1.25);
-  }
-  30% {
-    color: #f5c542;
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1);
+/* A correction (an undone basket): grey, so it doesn't read as a score. */
+.flash-down {
+  animation: hold-grey calc(var(--dur-hold) + 600ms) ease-out;
+}
+
+@keyframes hold-yellow {
+  0%,
+  66% {
+    color: var(--highlight);
   }
 }
 
-/* A play that just arrived slides in and fades its highlight. */
-.pbp-new {
-  animation: play-in 1.6s ease-out;
+@keyframes hold-grey {
+  0%,
+  66% {
+    color: var(--silver);
+  }
 }
 
-@keyframes play-in {
+/* Scores roll: the old number exits upward, the new one rises into place. */
+.score-roll {
+  display: inline-block;
+}
+
+.score-roll-box {
+  position: relative;
+  display: inline-block;
+}
+
+.score-roll-window {
+  display: inline-grid;
+  justify-items: center;
+  min-width: 2ch;
+  overflow: hidden;
+  vertical-align: bottom;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-roll-window > * {
+  grid-area: 1 / 1;
+}
+
+.score-roll-old {
+  visibility: hidden;
+}
+
+/* "+2" / "+3" beside the score, on the side facing the clock. Opacity only. */
+.points-tag {
+  position: absolute;
+  top: 0;
+  padding: 3px 5px;
+  background: var(--highlight);
+  color: var(--ink);
+  font: 700 0.72rem/1 var(--font-body-stack);
+  letter-spacing: 0;
+  white-space: nowrap;
+  animation: tag-life 2150ms both;
+}
+
+.points-tag.end {
+  left: 100%;
+  margin-left: 6px;
+}
+
+.points-tag.start {
+  right: 100%;
+  margin-right: 6px;
+}
+
+@keyframes tag-life {
   0% {
     opacity: 0;
-    transform: translateY(-8px);
-    background: #fff4d6;
   }
-  15% {
+  7%,
+  91% {
     opacity: 1;
-    transform: none;
-    background: #fff4d6;
   }
   100% {
-    background: transparent;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .score-roll-old {
+    visibility: visible;
+    animation: roll-out var(--dur-quick) var(--ease-exit) forwards;
+  }
+
+  .score-roll-new.flash {
+    animation:
+      roll-in var(--dur-enter) var(--ease-enter) 60ms both,
+      hold-yellow calc(var(--dur-hold) + 600ms) ease-out;
+  }
+
+  .score-roll-new.flash-down {
+    animation:
+      roll-in var(--dur-enter) var(--ease-enter) 60ms both,
+      hold-grey calc(var(--dur-hold) + 600ms) ease-out;
+  }
+
+  /* The live bar is small and on every page: a quicker roll. */
+  .score-roll.compact .score-roll-old {
+    animation-duration: calc(var(--dur-quick) * 0.8);
+  }
+
+  .score-roll.compact .score-roll-new.flash,
+  .score-roll.compact .score-roll-new.flash-down {
+    animation-duration: calc(var(--dur-enter) * 0.8), calc(var(--dur-hold) + 600ms);
+    animation-delay: 48ms, 0ms;
+  }
+}
+
+@keyframes roll-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes roll-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* A play that just arrived: its background holds yellow, then fades. */
+.pbp-new,
+.target {
+  animation: row-hold calc(var(--dur-hold) + 800ms) ease-out;
+}
+
+@keyframes row-hold {
+  0%,
+  60% {
+    background-color: var(--highlight-soft);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pbp-new {
+    animation:
+      row-in var(--dur-enter) var(--ease-enter),
+      row-hold calc(var(--dur-hold) + 800ms) ease-out;
+  }
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flash,
-  .pbp-new,
   .live-tag::before {
     animation: none;
   }
@@ -1825,8 +2100,31 @@ a.team-card:hover {
 
 .leader-bar-fill {
   display: block;
+  width: 100%;
   height: 100%;
   background: var(--brand);
+  transform-origin: left;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .leader-bar-fill,
+  .meter-fill,
+  .versus-fill {
+    transition: transform var(--dur-chart) var(--ease-standard);
+  }
+}
+
+/* Someone just took over first place. */
+.leader-bars li.rank-up {
+  animation: row-hold calc(var(--dur-hold) + 800ms) ease-out;
+}
+
+.leader-bar-empty .leader-bar-track {
+  height: 4px;
+}
+
+.leader-bar-empty .leader-bar-value {
+  color: var(--faint);
 }
 
 .leader-bars li:first-child .leader-bar-fill {
@@ -1959,6 +2257,18 @@ a.team-card:hover {
 .zone {
   stroke: white;
   stroke-width: 0.06;
+  transition: fill var(--dur-chart) var(--ease-standard);
+}
+
+.zone-label.flash text {
+  animation: hold-yellow-fill calc(var(--dur-hold) + 600ms) ease-out;
+}
+
+@keyframes hold-yellow-fill {
+  0%,
+  66% {
+    fill: var(--highlight);
+  }
 }
 
 .zone-lines {
@@ -2033,8 +2343,10 @@ a.team-card:hover {
 .gc-board-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
+  min-height: 42px;
   padding: 10px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.75);
@@ -2161,8 +2473,22 @@ a.team-card:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.gc-clock.stopped {
-  color: rgba(255, 255, 255, 0.65);
+.gc-clock.stopped,
+.feature-clock.stopped {
+  opacity: 0.6;
+}
+
+/* Not blinking: a blinking stopped clock is an anti-pattern. */
+.gc-stopped.hidden {
+  visibility: hidden;
+}
+
+.gc-stopped {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 560px) {
@@ -2240,6 +2566,20 @@ a.team-card:hover {
   font-weight: 700;
 }
 
+/* While live: the current period is highlighted, later ones are blank. */
+.gc-line thead th.current {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+.gc-line td.current {
+  font-weight: 700;
+}
+
+.gc-line td.future {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 @media (min-width: 1000px) {
   .gc-line {
     min-width: 300px;
@@ -2300,7 +2640,7 @@ a.team-card:hover {
 }
 
 .gc-panel-head h2 {
-  font-size: 1.35rem;
+  font-size: 1.1rem;
 }
 
 .gc-panel-foot {
@@ -2366,15 +2706,22 @@ a.team-card:hover {
   }
 }
 
-.gc-period-filter {
+/* Two square segmented groups (play type, quarter). They wrap; on phones each gets its own row. */
+.gc-feed-filters {
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 0 16px 10px;
-  overflow-x: auto;
 }
 
-.gc-period-filter button {
+.segments {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.segments button {
   min-height: 32px;
+  margin-left: -1px;
   padding: 0 12px;
   border: 1px solid var(--line-strong);
   background: var(--surface);
@@ -2384,20 +2731,89 @@ a.team-card:hover {
   cursor: pointer;
 }
 
-.gc-period-filter [aria-selected="true"] {
-  border-color: var(--brand);
-  background: var(--brand);
+.segments button:first-child {
+  margin-left: 0;
+}
+
+.segments button:not([aria-selected="true"]):hover {
+  color: var(--ink);
+}
+
+.segments [aria-selected="true"] {
+  position: relative;
+  border-color: var(--ink);
+  background: var(--ink);
   color: white;
+}
+
+@media (max-width: 560px) {
+  .gc-feed-filters .segments {
+    flex: 1 0 100%;
+  }
+}
+
+.gc-feed-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 240px;
 }
 
 .gc-feed {
   flex: 1 1 0;
-  min-height: 240px;
+  min-width: 0;
   margin: 0;
   padding: 0;
   overflow-y: auto;
   border-top: 1px solid var(--line);
   list-style: none;
+}
+
+/* Scrolled down the feed when plays arrive: offer them instead of pushing the list. */
+.feed-new {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 36px;
+  border: 0;
+  background: var(--ink);
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .feed-new {
+    animation: slide-down var(--dur-quick) var(--ease-enter);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+.gc-feed-more {
+  padding: 12px 16px;
+}
+
+.gc-feed-more button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gc-feed-more button:hover {
+  background: var(--ink);
+  color: white;
 }
 
 .gc-feed-row {
@@ -2416,11 +2832,18 @@ a.team-card:hover {
 }
 
 .gc-feed-row.opponent {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 13px;
   color: var(--muted);
 }
 
 .gc-feed-row.scoring {
   font-weight: 700;
+}
+
+.gc-feed-text .tag {
+  margin-left: 8px;
+  vertical-align: 1px;
 }
 
 .gc-feed-time {
@@ -2434,9 +2857,32 @@ a.team-card:hover {
   color: var(--muted);
 }
 
+/* The side that scored is bold in the running score. */
 .gc-feed-score {
-  color: var(--ink);
+  color: var(--muted);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
+}
+
+.gc-feed-score b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* End of a period: a full-width ink band, so the feed reads in chapters. */
+.gc-feed-chapter {
+  padding: 8px 16px;
+  background: var(--ink);
+  color: white;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.gc-feed-chapter.target,
+.gc-feed-chapter.pbp-new {
+  animation: none;
 }
 
 .gc-feed-marker {
@@ -2510,10 +2956,689 @@ a.team-card:hover {
 /* Latest shot on the court gets a ring. */
 .shot.latest {
   z-index: 2;
-  outline: 3px solid #f5c542;
+  outline: 3px solid var(--highlight);
   outline-offset: 2px;
+}
+
+/* Picking a player fades the rest back instead of removing them. */
+.shot.dim {
+  opacity: 0.15;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shot {
+    transition: opacity var(--dur-quick) var(--ease-standard);
+  }
+
+  /* A shot that arrives live grows in; a make sends out one ring. */
+  .shot.fresh {
+    animation: shot-in var(--dur-enter) var(--ease-enter);
+  }
+
+  .shot.made.fresh::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--highlight);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: shot-ring 600ms var(--ease-standard) forwards;
+  }
+}
+
+@keyframes shot-in {
+  from {
+    scale: 0.4;
+  }
+}
+
+@keyframes shot-ring {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+/* Every shot and By zone share one cell and crossfade. */
+.gc-views {
+  display: grid;
+}
+
+.gc-view {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.gc-view[data-active="false"] {
+  visibility: hidden;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gc-view {
+    transition:
+      opacity var(--dur-quick) var(--ease-standard),
+      visibility 0s;
+  }
+
+  .gc-view[data-active="false"] {
+    transition:
+      opacity var(--dur-quick) var(--ease-standard),
+      visibility 0s var(--dur-quick);
+  }
+}
+
+.gc-court-empty {
+  margin-bottom: 6px;
 }
 
 .shot.missed.latest {
   outline-offset: 0;
+}
+
+/* ---------------------------------------------------------------- Tags */
+
+/* Square tags in the play-by-play and the recap. Flat colours, no icons. */
+.tag {
+  display: inline-block;
+  padding: 2px 5px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 700 0.65rem/1.2 var(--font-body-stack);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tag.lead {
+  background: var(--ink);
+  color: white;
+}
+
+.tag.run {
+  background: var(--highlight);
+}
+
+/* ---------------------------------------------------------------- Scoreboard extras */
+
+.gc-score .score-roll-window {
+  min-width: 2ch;
+}
+
+.feature-score .score-roll-window {
+  min-width: 3ch;
+}
+
+.connection.stale {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.connection.stale::before {
+  display: none;
+}
+
+/* The bonus chip fades in when it starts (opacity only). */
+.bonus.appear {
+  animation: fade-in var(--dur-quick) var(--ease-standard);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Run in progress: an ink band with a square accent bar (yellow for the
+   Broncos, grey for the opponent; red is reserved for "live"). */
+.run-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px 0 0;
+  border-left: 4px solid var(--highlight);
+  background: var(--ink);
+  color: white;
+  overflow: hidden;
+}
+
+.run-strip.opponent {
+  border-left-color: var(--silver);
+}
+
+.run-strip-text {
+  padding-left: 10px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.run-strip-text .score-roll-window {
+  min-width: 0;
+}
+
+.run-strip-since {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-strip.leaving {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The broadcast lower-third wipe, only when a run reaches 6 during the game. */
+  .run-strip.entering {
+    animation: wipe-in var(--dur-enter) var(--ease-enter);
+  }
+
+  .run-strip.leaving {
+    animation: fade-out var(--dur-quick) var(--ease-exit);
+  }
+}
+
+@keyframes wipe-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Phones: the run takes the date line's place in the meta row (no height change).
+   Wider: it sits under the matchup, above the line score. */
+.run-strip.in-meta {
+  display: none;
+  flex: 1 1 auto;
+  margin: -6px 0;
+}
+
+@media (max-width: 560px) {
+  .run-strip.in-meta {
+    display: flex;
+  }
+
+  .run-strip.in-body {
+    display: none;
+  }
+
+  .gc-board-meta.has-run .gc-meta-text {
+    display: none;
+  }
+}
+
+@media (min-width: 1000px) {
+  .gc-board-body > .run-strip {
+    grid-column: 1;
+  }
+
+  .gc-board-body > .gc-line {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+/* In the home page feature card the run replaces the last-play line. */
+.run-strip.in-feature {
+  flex: 1 1 auto;
+  height: 28px;
+  margin: -4px 0;
+}
+
+.feature-headline {
+  color: white;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  text-transform: uppercase;
+}
+
+.feature-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feature-form .form-tile {
+  margin-left: 2px;
+}
+
+/* ---------------------------------------------------------------- Lead tracker strip */
+
+.lead-strip {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.lead-strip-plot {
+  position: relative;
+  height: 56px;
+  background: var(--surface);
+}
+
+.lead-strip-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lead-strip-run {
+  fill: var(--highlight-soft);
+}
+
+.lead-strip-grid {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lead-strip-zero {
+  stroke: var(--ink);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lead-strip-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+}
+
+/* "Now" on a live game: a 2px yellow hairline at the right edge of the chart. */
+.lead-strip-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--highlight);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Only the newest stretch grows in. */
+  .lead-strip-front {
+    transition: clip-path var(--dur-chart) var(--ease-standard);
+  }
+
+  /* The y-scale changed: crossfade rather than morph every point. */
+  .lead-strip-front.rescaled {
+    animation: rescale var(--dur-quick) var(--ease-standard);
+  }
+}
+
+@keyframes rescale {
+  from {
+    opacity: 0.4;
+  }
+}
+
+.lead-strip-axis {
+  position: relative;
+  height: 14px;
+}
+
+.lead-strip-axis span {
+  position: absolute;
+  top: 0;
+  padding-left: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.lead-strip-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 6px 0 0;
+}
+
+@media (min-width: 760px) {
+  .lead-strip-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lead-strip-stats div {
+  display: grid;
+  gap: 2px;
+}
+
+.lead-strip-stats dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lead-strip-stats dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lead-strip-stats abbr {
+  color: var(--muted);
+  font-family: var(--font-body-stack);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lead-strip-sep {
+  color: var(--faint);
+}
+
+/* The full chart draws itself once when the Lead tracker tab is opened. */
+@media (prefers-reduced-motion: no-preference) {
+  .flow-reveal {
+    animation: reveal 600ms var(--ease-standard);
+  }
+}
+
+@keyframes reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ---------------------------------------------------------------- Team stats meters */
+
+.gc-meters {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 10px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  font-size: 0.88rem;
+}
+
+.meter-label {
+  color: var(--muted);
+}
+
+.meter-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 4px;
+  background: var(--panel);
+}
+
+.meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--brand);
+  transform-origin: left;
+}
+
+/* Mirrored head-to-head, FIBA style: value · label · value. */
+.versus {
+  display: grid;
+  gap: 6px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.versus-head,
+.versus-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.versus-head {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.versus-head span:last-child {
+  text-align: right;
+}
+
+.versus-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.versus-side {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.versus-side.opponent {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.versus-value {
+  min-width: 2ch;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.versus-side.opponent .versus-value {
+  text-align: right;
+}
+
+.versus-track {
+  display: block;
+  height: 4px;
+  background: var(--panel);
+}
+
+/* The Broncos bar grows toward the label from the left; the opponent's from the right. */
+.versus-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #b9c0bb;
+  transform-origin: left;
+}
+
+.versus-fill.team {
+  background: var(--brand);
+  transform-origin: right;
+}
+
+/* ---------------------------------------------------------------- Recap (finals) */
+
+.recap {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px 18px;
+  border-top: 4px solid var(--ink);
+  background: var(--surface);
+}
+
+.recap-kicker {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recap-headline {
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+}
+
+.recap-moments {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recap-moments li {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+
+.recap-moments .tag {
+  justify-self: start;
+}
+
+.recap-moments a {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.recap-moments a:hover {
+  color: var(--brand);
+  text-decoration-color: currentColor;
+}
+
+/* A final's headline in the team schedule (wraps on phones rather than cutting off). */
+.game-main .game-recap {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- Pre-game */
+
+.pregame-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 760px) {
+  .pregame-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Last five results as square tiles: W in Broncos green, L in panel grey. */
+.form-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.form-tile {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.form-tile.W {
+  background: var(--brand);
+  color: white;
+}
+
+.form-tile strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.form-tile span {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.form-tile:hover {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.form-tile.small {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.last-meeting {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.last-meeting-score {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.last-meeting .see-all {
+  justify-self: start;
+}
+
+/* The page swaps from pre-game to live while open: a quick crossfade. */
+.gc-swap {
+  animation: fade-in var(--dur-quick) var(--ease-standard);
 }

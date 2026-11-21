@@ -1,6 +1,9 @@
+"use client";
+
 import { percentage } from "@/lib/basketball";
 import { CORNER_ARC_Y, COURT } from "@/lib/court";
 import type { ZoneId, ZoneStats } from "@/lib/game-analysis";
+import { useFlashKey } from "@/lib/use-flash";
 
 const { width: W, depth: D, basket: B } = COURT;
 const lane = { left: B.x - COURT.laneHalfWidth, right: B.x + COURT.laneHalfWidth };
@@ -28,22 +31,29 @@ const LABELS: Record<ZoneId, { x: number; y: number; small?: boolean }> = {
   aboveBreak3: { x: B.x, y: 10.6 },
 };
 
-/** Flat shade from light grey (cold) to Broncos green (hot) by field-goal %. */
-function shade(made: number, attempts: number) {
-  if (!attempts) return "var(--zone-empty)";
+/** Shade bucket 0 (no attempts) to 4 (55%+), by field-goal %. */
+function bucket(made: number, attempts: number) {
+  if (!attempts) return 0;
   const pct = made / attempts;
-  if (pct >= 0.55) return "var(--zone-4)";
-  if (pct >= 0.45) return "var(--zone-3)";
-  if (pct >= 0.35) return "var(--zone-2)";
-  return "var(--zone-1)";
+  if (pct >= 0.55) return 4;
+  if (pct >= 0.45) return 3;
+  if (pct >= 0.35) return 2;
+  return 1;
 }
 
+/** Flat shade from light grey (cold) to Broncos green (hot). */
+const SHADES = ["var(--zone-empty)", "var(--zone-1)", "var(--zone-2)", "var(--zone-3)", "var(--zone-4)"];
+
+/**
+ * Field-goal % by court zone. When a zone moves to another shade during a live
+ * game, its fill eases to the new colour and its label holds yellow briefly.
+ */
 export function ZoneChart({ stats }: { stats: ZoneStats }) {
   return (
     <div className="zone-chart">
       <svg viewBox={`0 0 ${W} ${D}`} role="img" aria-label="Shooting by zone">
         {(Object.keys(PATHS) as ZoneId[]).map((zone) => (
-          <path key={zone} d={PATHS[zone]} fillRule="evenodd" fill={shade(stats[zone].made, stats[zone].attempts)} className="zone" />
+          <path key={zone} d={PATHS[zone]} fillRule="evenodd" style={{ fill: SHADES[bucket(stats[zone].made, stats[zone].attempts)] }} className="zone" />
         ))}
         {/* Court lines on top */}
         <g className="zone-lines">
@@ -53,20 +63,24 @@ export function ZoneChart({ stats }: { stats: ZoneStats }) {
           <circle cx={B.x} cy={B.y} r="0.225" />
           <line x1={B.x - 0.9} y1={COURT.backboardY} x2={B.x + 0.9} y2={COURT.backboardY} />
         </g>
-        {(Object.keys(LABELS) as ZoneId[]).map((zone) => {
-          const { made, attempts } = stats[zone];
-          const at = LABELS[zone];
-          return (
-            <g key={zone} className={`zone-label ${at.small ? "small" : ""}`} transform={`translate(${at.x} ${at.y})`}>
-              <text y="-0.15">{attempts ? percentage(made, attempts) : "–"}</text>
-              <text y="0.55" className="zone-count">
-                {made}/{attempts}
-              </text>
-            </g>
-          );
-        })}
+        {(Object.keys(LABELS) as ZoneId[]).map((zone) => (
+          <ZoneLabel key={zone} zone={zone} made={stats[zone].made} attempts={stats[zone].attempts} />
+        ))}
       </svg>
     </div>
+  );
+}
+
+function ZoneLabel({ zone, made, attempts }: { zone: ZoneId; made: number; attempts: number }) {
+  const changed = useFlashKey(bucket(made, attempts));
+  const at = LABELS[zone];
+  return (
+    <g key={changed} className={`zone-label ${at.small ? "small" : ""} ${changed ? "flash" : ""}`} transform={`translate(${at.x} ${at.y})`}>
+      <text y="-0.15">{attempts ? percentage(made, attempts) : "–"}</text>
+      <text y="0.55" className="zone-count">
+        {made}/{attempts}
+      </text>
+    </g>
   );
 }
 

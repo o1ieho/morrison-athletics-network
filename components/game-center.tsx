@@ -2,12 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Countdown } from "@/components/countdown";
+import { ConnectionNote } from "@/components/connection-note";
 import { Court, CourtLegend } from "@/components/court";
-import { GameFlowChart } from "@/components/stats/game-flow";
+import { GameRecap } from "@/components/game-recap";
+import { LiveAnnouncer } from "@/components/live-announcer";
+import { PreGame, type GamePreview } from "@/components/pregame";
+import { RunStrip } from "@/components/run-strip";
+import { ScoreRoll } from "@/components/score-roll";
+import { GameFlowChart, LeadStrip } from "@/components/stats/game-flow";
 import { LeaderBars } from "@/components/stats/leader-bars";
 import { ZoneChart, ZoneLegend } from "@/components/stats/zone-chart";
+import { TableScroll } from "@/components/table-scroll";
 import {
   EVENT_META,
   activeEvents,
@@ -17,80 +24,131 @@ import {
   percentage,
   periodLabel,
   playerLabel,
+  shortName,
   teamFouls,
   timeoutsUsed,
   type BoxScore,
 } from "@/lib/basketball";
 import { formatDateTime, teamLabel } from "@/lib/format";
-import { elapsedSeconds, gameFlow, lineScore, zoneStats, type LineScore } from "@/lib/game-analysis";
-import type { LiveSnapshot } from "@/lib/live/service";
+import {
+  annotatePlays,
+  biggestRuns,
+  currentRun,
+  elapsedSeconds,
+  gameFlow,
+  lineScore,
+  scoringRuns,
+  timeLeading,
+  zoneStats,
+  type LineScore,
+  type Run,
+} from "@/lib/game-analysis";
+import type { ConnectionStatus, LiveSnapshot } from "@/lib/live/service";
 import { useLiveGame } from "@/lib/live/use-live-game";
-import type { GameEvent, GameSummary, RosterPlayer } from "@/lib/types";
+import { keyMoments, recapHeadline } from "@/lib/recap";
+import type { GameEvent, GameSummary, RosterPlayer, StatLine } from "@/lib/types";
 import { useFlashKey } from "@/lib/use-flash";
+
+/** Runs at least this big are shaded on the lead tracker. */
+const SHADED_RUN = 8;
+/** The play-by-play shows this many rows until "Show all" is tapped. */
+const FEED_LIMIT = 30;
+
+const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * The game page, laid out like a TV "gamecast": a compact scoreboard with the
- * line score, then the court, the play-by-play feed and the leaders side by
- * side, so a live game fits on one screen. Box score and game flow sit below.
+ * line score and any run in progress, the lead tracker strip, then the court,
+ * the play-by-play feed and the leaders side by side, so a live game fits on
+ * one screen. Box score and the full lead tracker sit below. A final leads
+ * with a recap; an upcoming game shows season leaders, form and the roster.
  */
-export function GameCenter({ initial }: { initial: LiveSnapshot }) {
+export function GameCenter({ initial, preview }: { initial: LiveSnapshot; preview?: GamePreview }) {
   const live = useLiveGame(initial.game.id, initial);
   const game = live.game ?? initial.game;
   const roster = live.roster;
   const events = live.events;
+  const names = useMemo(() => ({ team: "Broncos", opponent: game.opponent.shortName }), [game.opponent.shortName]);
 
   const box = useMemo(() => computeBoxScore(events, roster), [events, roster]);
   const line = useMemo(() => lineScore(game, events), [game, events]);
-  const started = game.status === "live" || game.status === "final" || activeEvents(events).length > 0;
+  const flow = useMemo(() => gameFlow(game, events), [game, events]);
+  const run = useMemo(() => currentRun(events), [events]);
+  const runs = useMemo(() => scoringRuns(events), [events]);
+  const biggest = useMemo(() => {
+    const best = biggestRuns(events);
+    return best.team && best.opponent ? (best.team.points >= best.opponent.points ? best.team : best.opponent) : (best.team ?? best.opponent);
+  }, [events]);
+  const recap = useMemo(
+    () => (game.status === "final" ? { headline: recapHeadline(game, events, names), moments: keyMoments(game, events, roster, names) } : null),
+    [game, events, roster, names],
+  );
+
+  const isLive = game.status === "live";
+  const started = isLive || game.status === "final" || activeEvents(events).length > 0;
+  // Changes once if the game tips off while the page is open, to crossfade the layout.
+  const tipped = useFlashKey(started);
   const [tab, setTab] = useState<"box" | "flow">("box");
 
-  if (!started) {
-    return (
-      <div className="stack">
-        <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={null} />
-        <section>
-          <div className="section-head">
-            <h2>Roster</h2>
-          </div>
-          <RosterList roster={roster} />
-        </section>
-      </div>
-    );
-  }
+  // Game time for the lead tracker, in 15-second steps so the chart doesn't redraw every tick.
+  const lastT = flow.points[flow.points.length - 1].t;
+  const nowT = isLive ? Math.max(lastT, Math.floor(elapsedSeconds(game, game.currentPeriod, live.clock) / 15) * 15) : undefined;
+  const shaded = runs
+    .filter((entry) => entry.points >= SHADED_RUN)
+    .map((entry) => ({
+      id: entry.start.id,
+      startT: elapsedSeconds(game, entry.start.period, entry.start.clockSecondsLeft),
+      endT: elapsedSeconds(game, entry.end.period, entry.end.clockSecondsLeft),
+    }));
 
   return (
     <div className="stack">
-      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={line} />
+      <LiveAnnouncer game={game} events={events} clock={live.clock} />
+      <Scoreboard game={game} events={events} clock={live.clock} status={live.status} line={started ? line : null} run={isLive ? run : null} />
 
-      <div className="gc-grid">
-        <ShotPanel game={game} events={events} roster={roster} />
-        <PlaysPanel game={game} events={events} roster={roster} />
-        <aside className="gc-side">
-          <LeadersPanel box={box} />
-          <TeamStatsPanel game={game} box={box} events={events} />
-        </aside>
-      </div>
+      <div key={tipped} className={`stack ${tipped ? "gc-swap" : ""}`}>
+        {started ? (
+          <>
+            {recap && <GameRecap recap={recap} />}
+            <LeadStrip flow={flow} game={game} opponentName={names.opponent} nowT={nowT} runs={shaded} leading={timeLeading(flow, nowT ?? flow.duration)} />
 
-      <div className="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "box"} onClick={() => setTab("box")}>
-          Box score
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "flow"} onClick={() => setTab("flow")}>
-          Game flow
-        </button>
+            <div className="gc-grid">
+              <ShotPanel game={game} events={events} roster={roster} />
+              <PlaysPanel game={game} events={events} roster={roster} />
+              <aside className="gc-side">
+                <LeadersPanel box={box} />
+                <TeamStatsPanel game={game} box={box} events={events} line={line} />
+              </aside>
+            </div>
+
+            <div className="tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={tab === "box"} onClick={() => setTab("box")}>
+                Box score
+              </button>
+              <button type="button" role="tab" aria-selected={tab === "flow"} onClick={() => setTab("flow")}>
+                Lead tracker
+              </button>
+            </div>
+            {tab === "box" ? (
+              <BoxScoreTable game={game} box={box} />
+            ) : (
+              <section className="card card-pad" aria-label="Lead tracker">
+                <GameFlowChart flow={flow} game={game} opponentName={names.opponent} nowT={nowT} biggestRun={biggest} />
+              </section>
+            )}
+          </>
+        ) : (
+          <>
+            {preview && <PreGame game={game} roster={roster} preview={preview} />}
+            <section>
+              <div className="section-head">
+                <h2>Roster</h2>
+              </div>
+              <RosterList roster={roster} />
+            </section>
+          </>
+        )}
       </div>
-      {tab === "box" ? (
-        <BoxScoreTable game={game} box={box} />
-      ) : (
-        <section className="card card-pad" aria-label="Game flow">
-          <GameFlowChart
-            flow={gameFlow(game, events)}
-            game={game}
-            opponentName={game.opponent.shortName}
-            nowT={game.status === "live" ? elapsedSeconds(game, game.currentPeriod, live.clock) : undefined}
-          />
-        </section>
-      )}
     </div>
   );
 }
@@ -103,24 +161,25 @@ function Scoreboard({
   clock,
   status,
   line,
+  run,
 }: {
   game: GameSummary;
   events: GameEvent[];
   clock: number;
-  status: string;
+  status: ConnectionStatus;
   line: LineScore | null;
+  run: Run | null;
 }) {
   const isLive = game.status === "live";
   const hasScore = isLive || game.status === "final";
-  const teamFlash = useFlashKey(game.teamScore);
-  const opponentFlash = useFlashKey(game.opponentScore);
   const teamFoulCount = teamFouls(game, events, "team");
   const opponentFoulCount = teamFouls(game, events, "opponent");
+  const foulLabel = `${game.foulReset === "half" && game.periodCount === 4 ? (game.currentPeriod <= 2 ? "1st half" : "2nd half") : periodLabel(game.currentPeriod, game.periodCount)} fouls`;
+  const names = { team: "Broncos", opponent: game.opponent.shortName };
 
   const team = {
     name: "Broncos",
     score: game.teamScore,
-    flash: teamFlash,
     side: game.isHome ? "Home" : "Away",
     fouls: teamFoulCount,
     timeouts: timeoutsUsed(events, "team"),
@@ -130,27 +189,36 @@ function Scoreboard({
   const opponent = {
     name: game.opponent.shortName,
     score: game.opponentScore,
-    flash: opponentFlash,
     side: game.isHome ? "Away" : "Home",
     fouls: opponentFoulCount,
     timeouts: timeoutsUsed(events, "opponent"),
     bonus: teamFoulCount >= game.bonusThreshold,
     trailing: hasScore && game.opponentScore < game.teamScore,
   };
+  const current = isLive ? game.currentPeriod - 1 : -1;
+  const total = (values: Array<number | null>) => values.reduce<number>((sum, value) => sum + (value ?? 0), 0);
 
   return (
     <section className="gc-board" aria-label="Scoreboard">
-      <div className="gc-board-meta">
-        <span>
+      <div className={`gc-board-meta ${run ? "has-run" : ""}`}>
+        <span className="gc-meta-text">
           {teamLabel(game.team)} · {formatDateTime(game.startsAt)}
           {game.location ? ` · ${game.location}` : ""}
         </span>
-        {isLive && <span className={`connection ${status === "live" ? "live" : ""}`}>{status === "live" ? "Live updates" : "Reconnecting…"}</span>}
+        {/* On phones a run takes the place of the date line, so the board doesn't change height. */}
+        <RunStrip run={run} names={names} periodCount={game.periodCount} className="in-meta" />
+        {isLive && <ConnectionNote status={status} />}
       </div>
 
       <div className="gc-board-body">
         <div className="gc-matchup">
-          <TeamScore team={team} mark={<Image className="gc-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} priority />} hasScore={hasScore} showFouls={isLive} />
+          <TeamScore
+            team={team}
+            foulLabel={foulLabel}
+            mark={<Image className="gc-mark" src="/brand/broncos-head-cropped.png" alt="" width={56} height={56} priority />}
+            hasScore={hasScore}
+            showFouls={isLive}
+          />
 
           <div className="gc-status">
             {isLive ? (
@@ -160,6 +228,8 @@ function Scoreboard({
                 <span className={`gc-clock ${game.clockRunning ? "" : "stopped"}`} suppressHydrationWarning>
                   {formatClock(clock)}
                 </span>
+                {/* Always rendered so the board doesn't change height when the clock starts. */}
+                <span className={`gc-stopped ${game.clockRunning ? "hidden" : ""}`}>Stopped</span>
               </>
             ) : game.status === "final" ? (
               <>
@@ -175,6 +245,7 @@ function Scoreboard({
 
           <TeamScore
             team={opponent}
+            foulLabel={foulLabel}
             mark={
               <span className="gc-mark opponent" aria-hidden="true">
                 {game.opponent.shortName.slice(0, 1)}
@@ -186,29 +257,37 @@ function Scoreboard({
           />
         </div>
 
+        <RunStrip run={run} names={names} periodCount={game.periodCount} className="in-body" />
+
         {line && (
           <div className="gc-line">
             <table>
               <thead>
                 <tr>
                   <th />
-                  {line.labels.map((label) => (
-                    <th key={label}>{label}</th>
+                  {line.labels.map((label, index) => (
+                    <th key={label} className={index === current ? "current" : undefined}>
+                      {label}
+                    </th>
                   ))}
                   <th>T</th>
                 </tr>
               </thead>
               <tbody>
-                {[
-                  ["Broncos", line.team],
-                  [game.opponent.shortName, line.opponent],
-                ].map(([name, values]) => (
-                  <tr key={name as string}>
-                    <th scope="row">{name as string}</th>
-                    {(values as number[]).map((value, index) => (
-                      <td key={line.labels[index]}>{value}</td>
+                {(
+                  [
+                    ["Broncos", line.team],
+                    [game.opponent.shortName, line.opponent],
+                  ] as const
+                ).map(([name, values]) => (
+                  <tr key={name}>
+                    <th scope="row">{name}</th>
+                    {values.map((value, index) => (
+                      <td key={line.labels[index]} className={index === current ? "current" : value === null ? "future" : undefined}>
+                        {value ?? "–"}
+                      </td>
                     ))}
-                    <td className="total">{(values as number[]).reduce((sum, value) => sum + value, 0)}</td>
+                    <td className="total">{total(values)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,7 +302,6 @@ function Scoreboard({
 type TeamSide = {
   name: string;
   score: number;
-  flash: number;
   side: string;
   fouls: number;
   timeouts: number;
@@ -233,17 +311,21 @@ type TeamSide = {
 
 function TeamScore({
   team,
+  foulLabel,
   mark,
   hasScore,
   showFouls,
   reverse = false,
 }: {
   team: TeamSide;
+  foulLabel: string;
   mark: React.ReactNode;
   hasScore: boolean;
   showFouls: boolean;
   reverse?: boolean;
 }) {
+  // The bonus chip fades in when it starts during the game, not on page load.
+  const bonusChanged = useFlashKey(team.bonus);
   return (
     <div className={`gc-team ${reverse ? "reverse" : ""} ${team.trailing ? "trailing" : ""}`}>
       {mark}
@@ -251,15 +333,12 @@ function TeamScore({
         <strong>{team.name}</strong>
         <span>
           {team.side}
-          {showFouls && ` · Fouls ${team.fouls} · TO ${team.timeouts}`}
-          {showFouls && team.bonus && <span className="bonus">Bonus</span>}
+          {showFouls && ` · ${foulLabel} ${team.fouls} · TO ${team.timeouts}`}
+          {showFouls && team.bonus && <span className={`bonus ${bonusChanged ? "appear" : ""}`}>Bonus</span>}
         </span>
       </span>
-      {hasScore && (
-        <span key={team.flash} className={`gc-score ${team.flash ? "flash" : ""}`}>
-          {team.score}
-        </span>
-      )}
+      {/* The "+3" tag sits on the side facing the clock. */}
+      {hasScore && <ScoreRoll value={team.score} className="gc-score" tag={reverse ? "start" : "end"} />}
     </div>
   );
 }
@@ -272,18 +351,18 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
   const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
 
   const active = activeEvents(events);
+  // Every Broncos shot stays on the court; picking a player fades the others back.
   const shots = active.filter(
-    (event) =>
-      event.side === "team" &&
-      event.shotX !== null &&
-      event.shotY !== null &&
-      EVENT_META[event.type].isFieldGoal &&
-      (playerId === "all" || event.athleteId === playerId),
+    (event) => event.side === "team" && event.shotX !== null && event.shotY !== null && EVENT_META[event.type].isFieldGoal,
   );
-  const shooters = roster.filter((player) => active.some((event) => event.athleteId === player.athleteId && event.shotX !== null));
-  const made = shots.filter((shot) => EVENT_META[shot.type].made).length;
+  // Shots on the court when the page loaded don't animate; later ones do.
+  const seen = useRef<Set<string> | null>(null);
+  seen.current ??= new Set(shots.map((shot) => shot.id));
+  const selected = shots.filter((shot) => playerId === "all" || shot.athleteId === playerId);
+  const shooters = roster.filter((player) => shots.some((shot) => shot.athleteId === player.athleteId));
+  const made = selected.filter((shot) => EVENT_META[shot.type].made).length;
   const lastPlay = [...active].reverse().find((event) => event.side !== "game");
-  const latestShotId = shots[shots.length - 1]?.id;
+  const latestShotId = selected[selected.length - 1]?.id;
 
   return (
     <section className="card gc-panel" aria-label="Shot chart">
@@ -306,7 +385,7 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
       <div className="gc-panel-head">
         <h2>Shot chart</h2>
         <span className="muted small tabular">
-          {made}/{shots.length} · {percentage(made, shots.length)}
+          {made}/{selected.length} · {percentage(made, selected.length)}
         </span>
       </div>
       <div className="gc-controls">
@@ -329,8 +408,9 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
           </select>
         </label>
       </div>
-      <div className="gc-court">
-        {view === "shots" ? (
+      {/* Both views share one grid cell and crossfade. */}
+      <div className="gc-court gc-views">
+        <div className="gc-view" data-active={view === "shots"}>
           <Court
             shots={shots.map((shot) => ({
               id: shot.id,
@@ -338,84 +418,187 @@ function ShotPanel({ game, events, roster }: { game: GameSummary; events: GameEv
               y: shot.shotY!,
               made: EVENT_META[shot.type].made,
               latest: shot.id === latestShotId,
+              fresh: !seen.current!.has(shot.id),
+              dim: playerId !== "all" && shot.athleteId !== playerId,
               label: `${EVENT_META[shot.type].label} · ${periodLabel(shot.period)} ${formatClock(shot.clockSecondsLeft)}`,
             }))}
           />
-        ) : (
-          <ZoneChart stats={zoneStats(events, playerId === "all" ? undefined : playerId)} />
-        )}
+        </div>
+        <div className="gc-view" data-active={view === "zones"}>
+          {/* Keyed on the player so switching players doesn't flash every zone. */}
+          <ZoneChart key={playerId} stats={zoneStats(events, playerId === "all" ? undefined : playerId)} />
+        </div>
       </div>
-      <div className="gc-panel-foot">{view === "shots" ? <CourtLegend /> : <ZoneLegend />}</div>
+      <div className="gc-panel-foot">
+        {!shots.length && <p className="muted small gc-court-empty">No shots yet</p>}
+        {view === "shots" ? <CourtLegend /> : <ZoneLegend />}
+      </div>
     </section>
   );
 }
 
 // ---------------------------------------------------------------- Play-by-play panel
 
+type FeedKind = "all" | "scoring" | "key";
+
 function PlaysPanel({ game, events, roster }: { game: GameSummary; events: GameEvent[]; roster: RosterPlayer[] }) {
   const players = useMemo(() => new Map(roster.map((player) => [player.athleteId, player])), [roster]);
+  const [kind, setKind] = useState<FeedKind>("all");
   const [period, setPeriod] = useState<number | "all">("all");
+  const [showAll, setShowAll] = useState(false);
+  const [target, setTarget] = useState<string | null>(null);
+  const [unseen, setUnseen] = useState(0);
+  const feed = useRef<HTMLOListElement>(null);
   // Plays present when the page loaded don't animate; anything after does.
   const seen = useRef<Set<string> | null>(null);
   seen.current ??= new Set(events.map((event) => event.id));
 
-  // Running score after each play, newest first.
-  const rows = useMemo(() => {
-    let team = 0;
-    let opponent = 0;
-    return activeEvents(events)
-      .map((event) => {
-        if (event.side === "team") team += event.points;
-        if (event.side === "opponent") opponent += event.points;
-        return { event, team, opponent };
-      })
-      .reverse();
-  }, [events]);
+  const notes = useMemo(() => annotatePlays(events), [events]);
+  // Newest first.
+  const rows = useMemo(() => activeEvents(events).reverse(), [events]);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
-  const periods = [...new Set(rows.map((row) => row.event.period))].sort((a, b) => a - b);
-  const shown = period === "all" ? rows : rows.filter((row) => row.event.period === period);
+  const periods = [...new Set(rows.map((event) => event.period))].sort((a, b) => a - b);
+  const filtered = rows.filter(
+    (event) =>
+      (period === "all" || event.period === period) &&
+      (kind === "all" || event.type === "period_end" || (kind === "scoring" ? event.points > 0 : notes.get(event.id)?.key)),
+  );
+  const shown = showAll ? filtered : filtered.slice(0, FEED_LIMIT);
+
+  // A recap link (#play-…) opens the feed on that play's quarter and scrolls to it.
+  useEffect(() => {
+    const open = () => {
+      const hash = decodeURIComponent(window.location.hash.slice(1));
+      const event = hash.startsWith("play-") ? rowsRef.current.find((entry) => entry.id === hash.slice(5)) : undefined;
+      if (!event) return;
+      setKind("all");
+      setPeriod(event.period);
+      setShowAll(true);
+      setTarget(event.id);
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
+  useEffect(() => {
+    if (target) document.getElementById(`play-${target}`)?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [target]);
+
+  // Scrolled down the feed: new plays don't push what you're reading; a button offers them instead.
+  const count = useRef(rows.length);
+  useEffect(() => {
+    const added = rows.length - count.current;
+    count.current = rows.length;
+    if (added > 0 && (feed.current?.scrollTop ?? 0) > 40) setUnseen((current) => current + added);
+  }, [rows.length]);
+
+  const names = { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount };
+  const filterButton = (active: boolean, label: string, onClick: () => void) => (
+    <button key={label} type="button" role="tab" aria-selected={active} onClick={onClick}>
+      {label}
+    </button>
+  );
 
   return (
     <section className="card gc-panel gc-plays" aria-label="Play-by-play">
       <div className="gc-panel-head">
         <h2>Play-by-play</h2>
       </div>
-      <div className="gc-period-filter" role="tablist" aria-label="Quarter">
-        {(["all", ...periods] as const).map((option) => (
-          <button key={option} type="button" role="tab" aria-selected={period === option} onClick={() => setPeriod(option)}>
-            {option === "all" ? "All" : periodLabel(option, game.periodCount)}
-          </button>
-        ))}
+      <div className="gc-feed-filters">
+        <div className="segments" role="tablist" aria-label="Plays">
+          {(["all", "scoring", "key"] as const).map((option) =>
+            filterButton(kind === option, option === "all" ? "All" : option === "scoring" ? "Scoring" : "Key", () => setKind(option)),
+          )}
+        </div>
+        <div className="segments" role="tablist" aria-label="Quarter">
+          {(["all", ...periods] as const).map((option) =>
+            filterButton(period === option, option === "all" ? "All Qs" : periodLabel(option, game.periodCount), () => setPeriod(option)),
+          )}
+        </div>
       </div>
-      <ol className="gc-feed">
-        {shown.map(({ event, team, opponent }) => {
-          const scoring = event.points > 0;
-          if (event.side === "game") {
+      <div className="gc-feed-wrap">
+        {unseen > 0 && (
+          <button
+            type="button"
+            className="feed-new"
+            onClick={() => {
+              feed.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+              setUnseen(0);
+            }}
+          >
+            {unseen} new {unseen === 1 ? "play" : "plays"} ↑
+          </button>
+        )}
+        <ol
+          className="gc-feed"
+          ref={feed}
+          onScroll={(event) => {
+            if (unseen && event.currentTarget.scrollTop <= 40) setUnseen(0);
+          }}
+        >
+          {shown.map((event) => {
+            const note = notes.get(event.id);
+            const fresh = !seen.current!.has(event.id);
+            const highlight = `${fresh ? "pbp-new" : ""} ${event.id === target ? "target" : ""}`;
+            if (event.type === "period_end" && note) {
+              const leader =
+                note.team > note.opponent
+                  ? `Broncos ${note.team}–${note.opponent}`
+                  : note.opponent > note.team
+                    ? `${game.opponent.shortName} ${note.opponent}–${note.team}`
+                    : `Tied ${note.team}–${note.opponent}`;
+              return (
+                <li key={event.id} id={`play-${event.id}`} className={`gc-feed-chapter ${highlight}`}>
+                  End of {periodLabel(event.period, game.periodCount)} · {leader}
+                </li>
+              );
+            }
+            if (event.side === "game") {
+              return (
+                <li key={event.id} id={`play-${event.id}`} className="gc-feed-marker">
+                  {describeEvent(event, names)}
+                </li>
+              );
+            }
+            const scoring = event.points > 0;
             return (
-              <li key={event.id} className="gc-feed-marker">
-                {describeEvent(event, { team: "Broncos", opponent: game.opponent.shortName, periodCount: game.periodCount })}
+              <li key={event.id} id={`play-${event.id}`} className={`gc-feed-row ${event.side} ${scoring ? "scoring" : ""} ${highlight}`}>
+                <span className="gc-feed-time">
+                  {period === "all" && <b>{periodLabel(event.period, game.periodCount)}</b>} {formatClock(event.clockSecondsLeft)}
+                </span>
+                <span className="gc-feed-text">
+                  {describeEvent(event, { ...names, player: event.athleteId ? players.get(event.athleteId) : undefined })}
+                  {note?.leadChange && <span className="tag lead">Lead change</span>}
+                  {note?.tie && <span className="tag tie">Tied</span>}
+                  {note?.run && <span className="tag run">{note.run.points}-0 run</span>}
+                  {note?.milestone && <span className="tag plain">{note.milestone} pts</span>}
+                </span>
+                <span className="gc-feed-score">
+                  {scoring && note && (
+                    <>
+                      {event.side === "team" ? <b>{note.team}</b> : note.team}–{event.side === "opponent" ? <b>{note.opponent}</b> : note.opponent}
+                    </>
+                  )}
+                </span>
               </li>
             );
-          }
-          return (
-            <li key={event.id} className={`gc-feed-row ${event.side} ${scoring ? "scoring" : ""} ${seen.current!.has(event.id) ? "" : "pbp-new"}`}>
-              <span className="gc-feed-time">
-                {period === "all" && <b>{periodLabel(event.period, game.periodCount)}</b>} {formatClock(event.clockSecondsLeft)}
-              </span>
-              <span className="gc-feed-text">
-                {describeEvent(event, {
-                  team: "Broncos",
-                  opponent: game.opponent.shortName,
-                  player: event.athleteId ? players.get(event.athleteId) : undefined,
-                  periodCount: game.periodCount,
-                })}
-              </span>
-              <span className="gc-feed-score">{scoring ? `${team}–${opponent}` : ""}</span>
+          })}
+          {!shown.length && (
+            <li className="gc-feed-empty">
+              {rows.length ? (kind === "key" ? "No key plays yet." : "No scoring plays yet.") : "Plays appear here as soon as the game tips off."}
             </li>
-          );
-        })}
-        {!shown.length && <li className="gc-feed-empty">No plays yet.</li>}
-      </ol>
+          )}
+          {!showAll && filtered.length > FEED_LIMIT && (
+            <li className="gc-feed-more">
+              <button type="button" onClick={() => setShowAll(true)}>
+                Show all {filtered.length} plays
+              </button>
+            </li>
+          )}
+        </ol>
+      </div>
     </section>
   );
 }
@@ -442,53 +625,128 @@ function LeadersPanel({ box }: { box: BoxScore }) {
   );
 }
 
-function TeamStatsPanel({ game, box, events }: { game: GameSummary; box: BoxScore; events: GameEvent[] }) {
+function TeamStatsPanel({ game, box, events, line }: { game: GameSummary; box: BoxScore; events: GameEvent[]; line: LineScore }) {
   const t = box.team;
+  const shooting: Array<[string, number, number]> = [
+    ["Field goals", t.fgm, t.fga],
+    ["3-pointers", t.fg3m, t.fg3a],
+    ["Free throws", t.ftm, t.fta],
+  ];
   const rows: Array<[string, string]> = [
-    ["Field goals", `${t.fgm}-${t.fga} · ${percentage(t.fgm, t.fga)}`],
-    ["3-pointers", `${t.fg3m}-${t.fg3a} · ${percentage(t.fg3m, t.fg3a)}`],
-    ["Free throws", `${t.ftm}-${t.fta} · ${percentage(t.ftm, t.fta)}`],
     ["Rebounds", `${t.reb} (${t.oreb} off)`],
     ["Assists", String(t.ast)],
     ["Steals · Blocks", `${t.stl} · ${t.blk}`],
     ["Turnovers", String(t.tov)],
+  ];
+  // Only stats logged for both sides: the operator records opponent points, fouls and timeouts.
+  const versus: Array<[string, number, number]> = [
+    ...line.labels.flatMap((label, index): Array<[string, number, number]> =>
+      line.team[index] === null ? [] : [[`${label} points`, line.team[index] ?? 0, line.opponent[index] ?? 0]],
+    ),
+    ["Fouls (game)", t.pf, box.opponent.pf],
+    ["Timeouts used", timeoutsUsed(events, "team"), timeoutsUsed(events, "opponent")],
   ];
   return (
     <section className="card gc-panel" aria-label="Team stats">
       <div className="gc-panel-head">
         <h2>Broncos stats</h2>
       </div>
+      <div className="gc-meters">
+        {shooting.map(([label, made, attempted]) => (
+          <div key={label} className="meter">
+            <span className="meter-label">{label}</span>
+            <FlashValue className="meter-value" value={`${made}-${attempted} · ${percentage(made, attempted)}`} />
+            <span className="meter-track" aria-hidden="true">
+              <span className="meter-fill" style={{ transform: `scaleX(${attempted ? made / attempted : 0})` }} />
+            </span>
+          </div>
+        ))}
+      </div>
       <dl className="gc-stats">
         {rows.map(([label, value]) => (
           <div key={label}>
             <dt>{label}</dt>
-            <dd>{value}</dd>
+            <dd>
+              <FlashValue value={value} />
+            </dd>
           </div>
         ))}
-        <div>
-          <dt>Fouls (game)</dt>
-          <dd>
-            {t.pf} – {box.opponent.pf} {game.opponent.shortName}
-          </dd>
-        </div>
-        <div>
-          <dt>Timeouts used</dt>
-          <dd>
-            {timeoutsUsed(events, "team")} – {timeoutsUsed(events, "opponent")} {game.opponent.shortName}
-          </dd>
-        </div>
       </dl>
+      <div className="versus" role="table" aria-label={`Broncos and ${game.opponent.shortName} compared`}>
+        <div className="versus-head" role="row">
+          <span role="columnheader">Broncos</span>
+          <span role="columnheader">
+            <span className="visually-hidden">Stat</span>
+          </span>
+          <span role="columnheader">{game.opponent.shortName}</span>
+        </div>
+        {versus.map(([label, ours, theirs]) => {
+          const most = Math.max(ours, theirs, 1);
+          return (
+            <div key={label} className="versus-row" role="row">
+              <span className="versus-side" role="cell">
+                <FlashValue className="versus-value" value={ours} />
+                <span className="versus-track" aria-hidden="true">
+                  <span className="versus-fill team" style={{ transform: `scaleX(${ours / most})` }} />
+                </span>
+              </span>
+              <span className="versus-label" role="rowheader">
+                {label}
+              </span>
+              <span className="versus-side opponent" role="cell">
+                <span className="versus-track" aria-hidden="true">
+                  <span className="versus-fill" style={{ transform: `scaleX(${theirs / most})` }} />
+                </span>
+                <FlashValue className="versus-value" value={theirs} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </section>
+  );
+}
+
+/** A value that holds yellow for a moment when it changes during the game. */
+function FlashValue({ value, className = "" }: { value: string | number; className?: string }) {
+  const changed = useFlashKey(value);
+  return (
+    <span key={changed} className={`${className} ${changed ? "flash" : ""}`}>
+      {value}
+    </span>
   );
 }
 
 // ---------------------------------------------------------------- Box score
 
+type BoxColumn = { label: string; title: string; value: (line: StatLine) => string | number; leader?: (line: StatLine) => number };
+
+const fraction = (made: number, attempted: number) => `${made}-${attempted}`;
+
+// Points, rebounds and assists first: the numbers parents look for fit on a phone screen.
+const BOX_COLUMNS: BoxColumn[] = [
+  { label: "PTS", title: "Points", value: (line) => line.pts, leader: (line) => line.pts },
+  { label: "REB", title: "Rebounds", value: (line) => line.reb, leader: (line) => line.reb },
+  { label: "AST", title: "Assists", value: (line) => line.ast, leader: (line) => line.ast },
+  { label: "FG", title: "Field goals made-attempted", value: (line) => fraction(line.fgm, line.fga), leader: (line) => line.fgm },
+  { label: "3PT", title: "3-pointers made-attempted", value: (line) => fraction(line.fg3m, line.fg3a), leader: (line) => line.fg3m },
+  { label: "FT", title: "Free throws made-attempted", value: (line) => fraction(line.ftm, line.fta), leader: (line) => line.ftm },
+  { label: "STL", title: "Steals", value: (line) => line.stl, leader: (line) => line.stl },
+  { label: "BLK", title: "Blocks", value: (line) => line.blk, leader: (line) => line.blk },
+  { label: "TO", title: "Turnovers", value: (line) => line.tov },
+  { label: "PF", title: "Personal fouls", value: (line) => line.pf },
+];
+
 function BoxScoreTable({ game, box }: { game: GameSummary; box: BoxScore }) {
   const played = box.players.filter(({ line }) => Object.values(line).some((value) => value > 0));
   const bench = box.players.filter((row) => !played.includes(row));
-  const fraction = (made: number, attempted: number) => `${made}-${attempted}`;
   const hasUnassigned = Object.values(box.unassigned).some((value) => value > 0);
+  // The game high in each column is bold with a yellow rule under it.
+  const highs = BOX_COLUMNS.map((column) => (column.leader ? Math.max(0, ...played.map(({ line }) => column.leader!(line))) : 0));
+  const isHigh = (index: number, line: StatLine) => {
+    const column = BOX_COLUMNS[index];
+    return Boolean(column.leader) && highs[index] > 0 && column.leader!(line) === highs[index];
+  };
 
   return (
     <section className="card" aria-label="Box score">
@@ -498,64 +756,46 @@ function BoxScoreTable({ game, box }: { game: GameSummary; box: BoxScore }) {
           {game.opponent.shortName}: {box.opponent.pts} pts · {box.opponent.pf} fouls
         </span>
       </div>
-      <div className="table-wrap">
-        <table className="table">
+      <TableScroll>
+        <table className="table box-score">
           <thead>
             <tr>
               <th>Player</th>
-              <th>PTS</th>
-              <th>FG</th>
-              <th>3PT</th>
-              <th>FT</th>
-              <th>REB</th>
-              <th>AST</th>
-              <th>STL</th>
-              <th>BLK</th>
-              <th>TO</th>
-              <th>PF</th>
+              {BOX_COLUMNS.map((column) => (
+                <th key={column.label} title={column.title}>
+                  {column.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {played.map(({ player, line }) => (
               <tr key={player.athleteId}>
                 <td>
-                  <Link href={`/players/${player.slug}`} className="player-cell">
+                  <Link href={`/players/${player.slug}`} className="player-cell" title={player.name} aria-label={playerLabel(player)}>
                     <span className="jersey">{player.number ?? ""}</span>
-                    {player.name}
+                    <span className="name-full">{player.name}</span>
+                    <span className="name-short">{shortName(player.name)}</span>
                   </Link>
                 </td>
-                <td>
-                  <strong>{line.pts}</strong>
-                </td>
-                <td>{fraction(line.fgm, line.fga)}</td>
-                <td>{fraction(line.fg3m, line.fg3a)}</td>
-                <td>{fraction(line.ftm, line.fta)}</td>
-                <td>{line.reb}</td>
-                <td>{line.ast}</td>
-                <td>{line.stl}</td>
-                <td>{line.blk}</td>
-                <td>{line.tov}</td>
-                <td>{line.pf}</td>
+                {BOX_COLUMNS.map((column, index) => (
+                  <td key={column.label} className={isHigh(index, line) ? "game-high" : undefined}>
+                    <FlashValue value={column.value(line)} />
+                  </td>
+                ))}
               </tr>
             ))}
             {hasUnassigned && (
               <tr>
                 <td className="muted">Team</td>
-                <td>{box.unassigned.pts}</td>
-                <td>{fraction(box.unassigned.fgm, box.unassigned.fga)}</td>
-                <td>{fraction(box.unassigned.fg3m, box.unassigned.fg3a)}</td>
-                <td>{fraction(box.unassigned.ftm, box.unassigned.fta)}</td>
-                <td>{box.unassigned.reb}</td>
-                <td>{box.unassigned.ast}</td>
-                <td>{box.unassigned.stl}</td>
-                <td>{box.unassigned.blk}</td>
-                <td>{box.unassigned.tov}</td>
-                <td>{box.unassigned.pf}</td>
+                {BOX_COLUMNS.map((column) => (
+                  <td key={column.label}>{column.value(box.unassigned)}</td>
+                ))}
               </tr>
             )}
             {!played.length && !hasUnassigned && (
               <tr>
-                <td colSpan={11} className="muted">
+                <td colSpan={BOX_COLUMNS.length + 1} className="muted">
                   No stats yet.
                 </td>
               </tr>
@@ -564,28 +804,34 @@ function BoxScoreTable({ game, box }: { game: GameSummary; box: BoxScore }) {
           <tfoot>
             <tr>
               <td>Totals</td>
-              <td>{box.team.pts}</td>
-              <td>{fraction(box.team.fgm, box.team.fga)}</td>
-              <td>{fraction(box.team.fg3m, box.team.fg3a)}</td>
-              <td>{fraction(box.team.ftm, box.team.fta)}</td>
-              <td>{box.team.reb}</td>
-              <td>{box.team.ast}</td>
-              <td>{box.team.stl}</td>
-              <td>{box.team.blk}</td>
-              <td>{box.team.tov}</td>
-              <td>{box.team.pf}</td>
+              {BOX_COLUMNS.map((column) => (
+                <td key={column.label}>
+                  <FlashValue value={column.value(box.team)} />
+                </td>
+              ))}
             </tr>
             <tr>
               <td className="muted small">Shooting</td>
-              <td />
+              <td colSpan={3} />
               <td className="muted small">{percentage(box.team.fgm, box.team.fga)}</td>
               <td className="muted small">{percentage(box.team.fg3m, box.team.fg3a)}</td>
               <td className="muted small">{percentage(box.team.ftm, box.team.fta)}</td>
-              <td colSpan={6} />
+              <td colSpan={4} />
+            </tr>
+            {/* The operator logs the opponent's points and fouls only. */}
+            <tr className="box-opponent">
+              <td>{game.opponent.shortName}</td>
+              <td>
+                <FlashValue value={box.opponent.pts} />
+              </td>
+              <td colSpan={8} />
+              <td>
+                <FlashValue value={box.opponent.pf} />
+              </td>
             </tr>
           </tfoot>
         </table>
-      </div>
+      </TableScroll>
       {bench.length > 0 && game.status !== "scheduled" && (
         <p className="muted small" style={{ padding: "12px 18px" }}>
           No stats recorded: {bench.map(({ player }) => playerLabel(player)).join(", ")}

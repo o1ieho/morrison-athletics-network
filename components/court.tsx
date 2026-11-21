@@ -1,7 +1,19 @@
 import type { ReactNode } from "react";
 import { CORNER_ARC_Y, COURT } from "@/lib/court";
 
-type Shot = { id: string; x: number; y: number; made: boolean; label?: string; pending?: boolean; latest?: boolean };
+type Shot = {
+  id: string;
+  x: number;
+  y: number;
+  made: boolean;
+  label?: string;
+  pending?: boolean;
+  latest?: boolean;
+  /** Arrived after the page loaded: plays the arrival animation once. */
+  fresh?: boolean;
+  /** Faded back because another player is selected. */
+  dim?: boolean;
+};
 
 const { width: W, depth: D, basket: B } = COURT;
 
@@ -33,7 +45,7 @@ export function Court({ shots = [], children, className = "" }: { shots?: Shot[]
       {shots.map((shot) => (
         <span
           key={shot.id}
-          className={`shot ${shot.pending ? "pending" : shot.made ? "made" : "missed"} ${shot.latest ? "latest" : ""}`}
+          className={`shot ${shot.pending ? "pending" : shot.made ? "made" : "missed"} ${shot.latest ? "latest" : ""} ${shot.fresh ? "fresh" : ""} ${shot.dim ? "dim" : ""}`}
           style={{ left: `${shot.x * 100}%`, top: `${shot.y * 100}%` }}
           title={shot.label}
         />

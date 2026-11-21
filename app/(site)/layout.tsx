@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LiveBar } from "@/components/live-bar";
+import { LiveGamesProvider } from "@/components/live-games";
 import { SiteHeader } from "@/components/site-header";
 import { isDemoMode } from "@/lib/config";
 import { getData } from "@/lib/data";
@@ -24,11 +25,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <strong>Demo mode:</strong> sample games and stats, not real results.
         </div>
       )}
-      <div className="site-top">
-        <SiteHeader />
-        <LiveBar initial={live} />
-      </div>
-      {children}
+      <LiveGamesProvider initial={live}>
+        <div className="site-top">
+          <SiteHeader />
+          <LiveBar />
+        </div>
+        {children}
+      </LiveGamesProvider>
       <div className="footer-mark" aria-hidden="true">
         <Image src="/brand/morrison-m-cropped.png" alt="" width={170} height={154} />
       </div>

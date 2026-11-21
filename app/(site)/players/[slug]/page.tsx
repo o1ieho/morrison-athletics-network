@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Sparkline } from "@/components/stats/sparkline";
+import { TableScroll } from "@/components/table-scroll";
 import { percentage } from "@/lib/basketball";
 import { getData } from "@/lib/data";
 import { average, formatShortDay, resultLetter, teamLabel } from "@/lib/format";
@@ -96,7 +97,7 @@ export default async function PlayerPage({ params }: Props) {
             <h2>Game log</h2>
           </div>
           <div className="card">
-            <div className="table-wrap">
+            <TableScroll>
               <table className="table">
                 <thead>
                   <tr>
@@ -157,7 +158,7 @@ export default async function PlayerPage({ params }: Props) {
                   )}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </div>
         </section>
       </div>

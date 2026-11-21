@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { percentage } from "@/lib/basketball";
+import { percentage, shortName } from "@/lib/basketball";
 import { average } from "@/lib/format";
 import type { RosterPlayer, SeasonStatLine } from "@/lib/types";
+import { TableScroll } from "./table-scroll";
 
 export type SortKey = "pts" | "reb" | "ast" | "stl" | "blk" | "fg" | "fg3" | "ft";
 
@@ -54,7 +55,7 @@ export function StatsTable({
     });
 
   return (
-    <div className="table-wrap">
+    <TableScroll>
       <table className="table">
         <thead>
           <tr>
@@ -78,9 +79,10 @@ export function StatsTable({
           {rows.map(({ player, line }) => (
             <tr key={player.athleteId}>
               <td>
-                <Link href={`/players/${player.slug}`} className="player-cell">
+                <Link href={`/players/${player.slug}`} className="player-cell" title={player.name} aria-label={player.name}>
                   <span className="jersey">{player.number ?? ""}</span>
-                  {player.name}
+                  <span className="name-full">{player.name}</span>
+                  <span className="name-short">{shortName(player.name)}</span>
                 </Link>
               </td>
               <td>{line?.gp ?? 0}</td>
@@ -113,7 +115,7 @@ export function StatsTable({
           )}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
   );
 }
 
