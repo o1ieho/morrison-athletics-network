@@ -3,15 +3,11 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { getStaffUser } from "@/lib/auth";
 import { isDemoMode } from "@/lib/config";
+import { safeNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Staff sign-in" };
 
 type Props = { searchParams: Promise<{ next?: string; denied?: string }> };
-
-function safeNext(next: string | undefined) {
-  // Only allow same-site paths, never an absolute URL.
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/operator";
-}
 
 export default async function LoginPage({ searchParams }: Props) {
   const { next, denied } = await searchParams;

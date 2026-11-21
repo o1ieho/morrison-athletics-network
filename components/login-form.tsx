@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { safeNext } from "@/lib/safe-next";
 import { getBrowserClient } from "@/lib/supabase/browser";
 
 export function LoginForm({ next }: { next: string }) {
@@ -21,7 +22,8 @@ export function LoginForm({ next }: { next: string }) {
       setPending(false);
       return;
     }
-    router.replace(next);
+    // Checked again here: the form must never send someone off-site.
+    router.replace(safeNext(next));
     router.refresh();
   }
 
