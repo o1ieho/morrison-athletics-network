@@ -7,7 +7,8 @@ import { safeNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Staff sign-in" };
 
-type Props = { searchParams: Promise<{ next?: string; denied?: string }> };
+// A repeated query parameter arrives as an array; safeNext falls back for anything but one string.
+type Props = { searchParams: Promise<{ next?: string | string[]; denied?: string | string[] }> };
 
 export default async function LoginPage({ searchParams }: Props) {
   const { next, denied } = await searchParams;

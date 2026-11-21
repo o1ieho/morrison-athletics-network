@@ -24,8 +24,9 @@
   font-size: 15px;
 }
 
-/* Focus rings: white on the dark console (the global ink ring would vanish). */
-.op :focus-visible {
+/* Focus rings: white on the dark console and game picker (the global ink ring would vanish). */
+.op :focus-visible,
+.op-picker :focus-visible {
   outline: 3px solid white;
   outline-offset: 2px;
 }

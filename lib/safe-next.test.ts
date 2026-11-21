@@ -17,6 +17,12 @@ test("anything that could leave the site falls back to /operator", () => {
     "javascript:alert(1)",
     "evil.com",
     "/\tevil.com",
+    // Dot segments that normalise to "//host".
+    "/.//evil.com",
+    "/..//evil.com",
+    "/%2e//evil.com",
+    "/a/..//evil.com",
+    "/./%2Fevil.com/../..//evil.com",
     " /operator",
     "",
     undefined,
@@ -24,6 +30,14 @@ test("anything that could leave the site falls back to /operator", () => {
   ]) {
     assert.equal(safeNext(next), "/operator", String(next));
   }
+});
+
+test("a repeated ?next= (an array) falls back", () => {
+  assert.equal(safeNext(["/a", "/b"]), "/operator");
+});
+
+test("ordinary dot segments still resolve to a same-site path", () => {
+  assert.equal(safeNext("/admin/../operator"), "/operator");
 });
 
 test("a custom fallback", () => {
